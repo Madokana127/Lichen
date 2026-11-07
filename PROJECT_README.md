@@ -40,6 +40,8 @@
 6. WSL 默认 shell 是 fish、默认用户 root：非交互命令一律写成 **bash 脚本文件**执行，
    密钥等敏感值作为**命令行参数**传入（不写进脚本文件）；避免在 `bash -c` 里用 `${...}`
    这类 fish 不认识的语法（会被截获报错）。
+7. UI 设计先走 HTML 预览（见第 8 节）：HTML 原型敲定后才写 SwiftUI；把敲定的原型与
+   设计 token 作为 Claude Code 的输入，不让模型凭空发挥视觉。
 
 ## 4. 当前状态
 
@@ -47,6 +49,7 @@
 - [x] ccms 状态核对（本轮）：无变化，详见第 5 节
 - [x] **iOS 应用框架骨架（本次任务，已完成）**：13 个 Swift 文件，结构见第 6 节
 - [x] 备用模型通道准备（本轮用户追加要求）：详见第 7 节
+- [x] 后续开发方法约定（本轮）：HTML 预览工作流 + 跨平台框架 / 桥接层方向（见第 8、9 节）
 - [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（**后续任务，本次不做**）
 
 骨架验收（回同步前在 WSL 侧实测）：13 个 Swift 文件、28 处 `TODO`、
@@ -144,7 +147,88 @@ ccms --route --all deepseek deepseek-flash         # 切回官方
 > `deepseek/deepseek-flash`）；仅完成密钥入库、model ID 实测与命令记录。
 > 后续任务开始前请连同本节一起重新核对 ccms 状态（见第 5 节）。
 
-## 8. 变更记录
+## 8. UI 预览工作流（无苹果设备时的设计闭环）
+
+用户手边没有苹果设备，SwiftUI 的真机 / Preview 验证安排在学校机房的 Xcode 完成。
+因此**设计敲定不依赖 Xcode**，闭环如下：
+
+```
+设计想法 → HTML/CSS 原型（本机浏览器 / Hermes 内联预览）→ 用户敲定
+        → SwiftUI 实现（逐视图对应）→ 学校 Xcode Preview 验证
+        → 反馈回 HTML 原型迭代
+```
+
+约定：
+
+- `Preview/` 存放静态 HTML 原型，不进 SwiftPM target、不参与 Xcode 构建；
+  每个 SwiftUI 视图对应一个原型片段（或单一 `index.html` 内多视图切换），命名与视图对齐。
+- 原型是**单文件自包含 HTML**（CSS 变量定义 token、内嵌少量 JS 模拟状态与假数据），
+  不引入构建工具、不连真实网关；按 `claude-design` 技能「先定 surface 再定 token」——
+  Lichen 属 Monitor / Command·Inspect 类界面，不要营销式 hero + 三卡片。
+- 设计 token（颜色 / 间距 / 字体 / 圆角 / 动效）在 CSS `:root` 单一定义，敲定后映射为
+  SwiftUI 侧常量（可脚本生成，或落成 `design-md` 的 DESIGN.md 规格），避免两边各改一套。
+- 视觉起点可复用 `popular-web-designs` 模板；终端 / 开发者工具调性可参考
+  Ollama、OpenCode、x.ai、VoltAgent、Linear、Warp（取设计原则，不抄 proprietary 版式）。
+- 每次视觉变更先改 HTML 并在浏览器确认，再改 SwiftUI；SwiftUI 侧调整反向同步回 HTML。
+  需要在聊天内直接看时用 `::preview{file=...}` 内联预览。
+- 本轮只确立工作流：`Preview/` 尚未建立、未敲定任何视觉设计；下一次 UI 任务按此落地。
+
+## 9. 架构演进与跨平台框架选型（后续，本轮不实施）
+
+当前分层：`LichenCore`（纯 Swift 协议 / 模型）+ `LichenApp`（SwiftUI）。
+用户规划：核心逻辑以后可能换成通用（跨平台）框架；UI 可能换目标平台，也可能直接换成
+通用 UI 框架；两者之间用**桥接层**连接。
+> 术语：这里的「后端」指本地核心逻辑层与远程网关通信，不是云端服务。
+
+### 9.1 分层与桥接层
+
+```
+UI 层（可替换）     SwiftUI（现在） / 通用 UI 框架（以后）
+      ↕  桥接层：与语言无关的契约（命令 + 事件流 + DTO）
+核心层（可替换）     Swift（现在） / 通用框架（以后）
+      ↕
+电脑端 Agent 网关
+```
+
+- 核心不 import SwiftUI / UIKit，只暴露纯数据、命令与状态订阅；UI 只依赖契约。
+- **当前骨架已预留桥接位置**：`GatewayClient` / `SessionStore` / `TerminalBuffer` 都是协议，
+  未来换核心只需写新适配器实现这些协议，UI 层不用重写。
+- 状态映射：桥接层把核心事件流适配成 SwiftUI 的 `@Observable` / `ObservableObject`；
+  换 UI 框架时只换适配器。
+- 契约形式按「通用程度」递增：Swift protocol → `uniffi` / C ABI 生成的绑定
+  → protobuf / Cap'n Proto 消息 → WIT（WASM）接口。
+
+### 9.2 通用核心框架候选
+
+| 方案 | 优点 | 代价 / 适用 |
+|---|---|---|
+| **Rust + uniffi**（首选） | 终端仿真、协议编解码、加密性能好且内存安全；uniffi 自动生成 Swift / Kotlin / TS 绑定；本机 WSL 已有 Rust 工具链（ccms 即 Rust） | 需维护 FFI 与绑定生成；适合把 `LichenCore` 逐步下沉 |
+| **Kotlin Multiplatform (KMP)** | iOS 一等公民，直接产出 Swift 可调用的 framework；业务逻辑共享，UI 仍可留 SwiftUI；与 Compose MP 可渐进衔接 | 引入 Gradle / Kotlin 工具链 |
+| **TypeScript + WASM / WASI（或 Capacitor）** | 与 HTML 预览同语言，设计产物可复用；生态大 | 终端与低延迟场景需额外原生模块，运行时体积较大 |
+| **C / C++ + C ABI** | 最通用，任何平台都能调；可复用 libvterm 等成熟 C 库 | 开发效率低、内存安全自负 |
+
+### 9.3 通用 UI 框架候选（若 UI 也要跨平台）
+
+| 方案 | 优点 | 代价 / 适用 |
+|---|---|---|
+| **Flutter** | 单代码库覆盖 iOS / Android / 桌面 / Web，渲染性能足够终端类界面；Dart 与 Rust 核心经 FFI 衔接成熟 | 放弃 SwiftUI 原生观感；学校 Xcode 预览环节改为 Flutter 预览 |
+| **React Native / Expo，或 Web UI + Tauri 2 / Capacitor** | 最大程度复用 HTML 预览产物；Tauri 2 支持 iOS，前端接近设计稿 | RN 需原生模块做终端 / 网关；纯 Web 方案在 iOS 后台与体验受限 |
+| **Compose Multiplatform** | 与 KMP 同语言，核心与 UI 一起跨平台 | iOS 端成熟度仍在推进；SwiftUI 预览工作流需重做 |
+
+### 9.4 推荐路径（供决策，未定案）
+
+1. **近期**：保持 Swift 核心 + SwiftUI，但严格执行「协议即桥接层」——
+   UI 只依赖 `LichenCore` 协议，不碰实现；同时把第 8 节 HTML 预览跑起来。
+2. **中期**：若确定跨平台，优先 **Rust + uniffi** 下沉 `LichenCore`（网关协议 / 会话 / 终端缓冲），
+   SwiftUI 侧只留薄适配器实现现有协议；Rust 部分可直接在 WSL 编译验证。
+3. **若连 UI 也换**：优先 **Flutter**（配 Rust 核心）；若希望 HTML 设计产物直接复用，
+   选 **Tauri 2 / Capacitor + Web UI**。
+4. **不论哪条路**：先定稿桥接层契约（命令 + 事件 + DTO）并纳入版本管理，再写实现，
+   避免各语言手写漂移。
+
+> 本轮只记录方向与候选：**不做选型定案、不引入任何依赖、不改现有代码**。
+
+## 10. 变更记录
 
 ### 2026-11-07 · 初始化（commit `8f5ed28`）
 - 在 `D:\prflib\coding\swift\Lichen.swiftpm` 执行 `git init -b main`，配置本地提交身份。
@@ -165,9 +249,18 @@ ccms --route --all deepseek deepseek-flash         # 切回官方
   `deepseek-v4.1-flash-1017` 实测 200、切换命令见第 7 节）；当前生效路由未改。
 - 更新本文件为真实状态；`git add -A && git commit`。
 
-## 9. 待办 / 后续
+### 2026-11-07 · 后续开发方法约定（本轮，仅文档）
+- 用户明确：手边无苹果设备，SwiftUI 预览在学校机房 Xcode 完成。
+- 新增第 8 节：HTML 原型敲定设计 → SwiftUI 实现 → 学校 Xcode Preview 验证的闭环与 `Preview/` 约定。
+- 新增第 9 节：跨平台核心框架候选（Rust+uniffi / KMP / TS+WASM / C ABI）、通用 UI 框架候选（Flutter / RN+Tauri / Compose MP）、「协议即桥接层」与推荐路径。
+- 本轮**不做选型定案、不引入依赖、不改任何代码**。
+
+## 11. 待办 / 后续
 
 - [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（后续任务）
+- [ ] 建立 `Preview/` 与最小 HTML 原型（对应当前三 tab 占位视图），跑通第 8 节工作流
+- [ ] 定稿桥接层契约（命令 / 事件 / DTO）与 IDL 形式，纳入版本管理
+- [ ] 框架选型定案（第 9.4 节）；若下沉 Rust 核心，先在 WSL 编译验证
 - [ ] 明确远程网关协议（WebSocket / HTTP / 自定义？）与鉴权方式
 - [ ] 确定工程最终形态：保持 SwiftPM 包、还是补 `.xcodeproj` / Swift Playgrounds App
 - [ ] 在有 Xcode 的 macOS 上做真实编译与模拟器运行验证
