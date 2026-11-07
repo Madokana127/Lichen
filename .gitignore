@@ -1,0 +1,41 @@
+# ---- Swift / SwiftPM / Xcode ----
+.build/
+DerivedData/
+.swiftpm/configuration/
+.swiftpm/xcode/package.xcworkspace/
+xcuserdata/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+Carthage/Build/
+Pods/
+Package.resolved
+
+# ---- secrets / local-only ----
+.env
+*.env.local
+keys.enc
+keystore.key
+*.p12
+*.mobileprovision
+
+# ---- task / tooling scratch (must never be committed) ----
+TASK.md
+claude_output.log
+claude_scaffold.log
+*.pre-lichen.bak
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
