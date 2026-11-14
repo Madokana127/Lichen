@@ -96,7 +96,9 @@ public actor PersistentSessionStore: SessionStore {
         return manager.temporaryDirectory.appendingPathComponent("Lichen", isDirectory: true)
     }
 
-    private struct Snapshot: Codable {
+    /// 持久化快照。声明为 internal 而非 private：`private extension` 内的方法
+    /// 在文件作用域为 fileprivate，返回 private 嵌套类型会触发访问控制错误。
+    internal struct Snapshot: Codable {
         var sessions: [Session]
         var messagesBySession: [String: [SessionMessage]]
     }
