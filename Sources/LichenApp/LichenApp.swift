@@ -1,15 +1,28 @@
 import SwiftUI
 import LichenCore
 
-// TODO: 最终工程形态待后续任务确定——是否需要补充 .xcodeproj 或 Swift Playgrounds App 包装。
+/// Lichen 应用入口。
 @main
 public struct LichenApp: App {
-    // TODO: 后续任务在此接入真实网关状态与应用生命周期（前后台切换、连接恢复）。
-    public init() {}
+    @State private var appState = AppState(sessionStore: PersistentSessionStore())
 
     public var body: some Scene {
         WindowGroup {
             RootView()
+                .environment(appState)
+                .preferredColorScheme(preferredColorScheme)
+        }
+    }
+
+    /// 主题跟随 `AppState.theme`；`system` 交回系统外观。
+    private var preferredColorScheme: ColorScheme? {
+        switch appState.theme {
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        case .system:
+            return nil
         }
     }
 }
