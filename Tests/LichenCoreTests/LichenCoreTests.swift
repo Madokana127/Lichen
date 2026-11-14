@@ -2,14 +2,7 @@ import XCTest
 import Foundation
 @testable import LichenCore
 
-// TODO: 后续任务替换为真实单元测试（状态机迁移、会话生命周期、网关同步等）。
 final class LichenCoreTests: XCTestCase {
-    func testDisconnectedStateCanBeConstructed() {
-        let state = GatewayConnectionState.disconnected
-        XCTAssertEqual(state, .disconnected)
-        XCTAssertNotEqual(state, .connected)
-    }
-
     func testSessionDefaultValues() {
         let before = Date()
         let session = Session(title: "未命名会话")
@@ -18,5 +11,35 @@ final class LichenCoreTests: XCTestCase {
         XCTAssertEqual(session.title, "未命名会话")
         XCTAssertGreaterThanOrEqual(session.createdAt, before)
         XCTAssertLessThanOrEqual(session.createdAt, after)
+    }
+
+    func testBoundedTerminalBufferTrimsOldestCharacters() {
+        var buffer = BoundedTerminalBuffer(capacity: 5)
+        buffer.append("abc")
+        buffer.append("def")
+
+        XCTAssertEqual(buffer.capacity, 5)
+        XCTAssertEqual(buffer.snapshot, "bcdef")
+    }
+
+    func testBoundedTerminalBufferDropsWholeChunks() {
+        var buffer = BoundedTerminalBuffer(capacity: 4)
+        buffer.append("ab")
+        buffer.append("cd")
+        buffer.append("ef")
+
+        XCTAssertEqual(buffer.snapshot, "cdef")
+    }
+
+    func testInMemorySessionStoreLifecycle() async throws {
+        let store = InMemorySessionStore()
+        let created = try await store.createSession(title: "会话")
+
+        let listed = try await store.listSessions()
+        XCTAssertEqual(listed.map(\.id), [created.id])
+
+        try await store.deleteSession(id: created.id)
+        let empty = try await store.listSessions()
+        XCTAssertTrue(empty.isEmpty)
     }
 }
