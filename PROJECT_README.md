@@ -62,10 +62,13 @@
   Foundation / SwiftUI / Observation / LichenCore / XCTest
 - [x] 静态自洽核对通过：31 个 Swift 文件括号配平、`DesignTokens.*` / `palette.*` /
   `appState.*` 悬空引用 0、无真实网关地址 / 密钥
-- [ ] **未在 Xcode 编译 / 预览**：需在学校机房验证（见第 11 节）
+- [ ] **Xcode 编译 / 预览验证未完成**：首轮编译（2026-11-14 机房）报 3 处访问控制错误，
+  已修复（`b19f0e9`），**修复后尚未复编**，见第 10、11 节
 
-验收边界：以上均为静态文本 / 结构核对与真实浏览器（HTML 原型）实测，
-**不包含 Swift 编译、Xcode Preview、真机运行，也不包含与真实 Hermes 网关的端到端联通**。
+验收边界：以上均为静态文本 / 结构核对与真实浏览器（HTML 原型）实测。
+**2026-11-14 机房 Xcode 首轮编译确实抓出了静态检查漏掉的访问控制错误（3 处，已修）**，
+说明静态自洽核对不能替代编译；修复后仍待复编，且不包含 Xcode Preview、真机运行
+或与真实 Hermes 网关的端到端联通。
 
 ## 5. ccms 状态核对（每次新任务前执行）
 
@@ -381,11 +384,29 @@ UI 层（可替换）     SwiftUI（现在） / 通用 UI 框架（以后）
   两档 / 关闭五要素 / `composerLine` / 78% 抽屉 / 全屏设置 / 12 个 `#Preview` / 无凭据。
 - **未编译**：本机与 WSL 无 Swift / Xcode，仅静态自洽核对；Xcode 验证列入待办。
 
+### 2026-11-14 · Xcode 首轮编译反馈与修复（commit `b19f0e9`）
+- 用户在学校机房用 Xcode 打开 `Package.swift` 编译，Issue Navigator 报 3 处
+  `Method must be declared private because its result uses a private type`
+  （`Lichen` 分组下 `Agent` 1 处、`LichenCore` 分组下 `SessionStore` 2 处），
+  外加汇总 `Command SwiftCompile failed with a nonzero exit code`；放大截图复核无其它遗漏错误。
+- 根因：`Agent.swift` / `SessionStore.swift` 里嵌套在 `public actor` 内的
+  `private struct Snapshot`，与 `private extension` 内方法（文件作用域为 fileprivate）级别不匹配；
+  恰好 3 个方法返回 `Snapshot`（`readSnapshot` ×2、`makeSnapshot` ×1），与报错数量吻合。
+- 修法：把两处 `Snapshot` 从 `private` 提升为 `internal`（**不动任何方法**），
+  使方法访问级别恒 ≤ 返回类型级别；加中文注释防止被改回。
+  静态扫描确认全项目再无「方法返回 private 类型」的情况。
+- `GatewayConfiguration.Snapshot` 本就是 `public`，其 `public func load() -> Snapshot` 合法，未改。
+- **修复后尚未在 Xcode 复编**；本机 / WSL 仍无 Swift 工具链，无法自行验证。
+- 这是项目第一次真实编译反馈：静态自洽核对（TODO / 括号 / 悬空引用）抓不到访问控制问题，
+  后续以 Xcode 结果为准。
+
 ## 11. 待办 / 后续
 
-- [ ] **在学校机房 macOS / Xcode 打开 `Package.swift`，编译并跑 `#Preview`**（最关键）：
-  重点确认 `@main` 在 library target 下是否报错；若报错，按 `LichenApp.swift` 头部注释二选一
+- [ ] **在学校机房 macOS / Xcode 复编**（首轮 3 处错误已修 `b19f0e9`，取最新提交后 Cmd+B）：
+  若还有新错误，继续发 Issue Navigator 截图；重点确认 `@main` 在 library target 下是否导致
+  「无法作为 App 运行」——若报错，按 `LichenApp.swift` 头部注释二选一
   （改 `.executableTarget` + `.executable` product，或去掉 `@main` 仅保留 `App` 结构供 Preview）。
+  `#Preview` 画布不依赖 executable target，可先单独验证界面。
 - [ ] 补齐工程最终形态：保持 SwiftPM 包，还是补 `.xcodeproj` / Swift Playgrounds App 包装。
 - [ ] 与真实 Hermes 网关端到端联调（token 模式 / OAuth ticket 模式 / wss 自签证书显式开关）。
 - [ ] 定稿桥接层契约（命令 / 事件 / DTO）与 IDL 形式，纳入版本管理；框架选型定案（第 9.4 节）。
