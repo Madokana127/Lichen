@@ -8,6 +8,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var connectVisible = false
     @State private var connectProgress: CGFloat = 0
@@ -29,7 +30,7 @@ struct RootView: View {
                             && appState.screen != .settings
                             && !connectVisible
                     )
-                    .animation(DesignTokens.panel, value: appState.isDrawerOpen)
+                    .animation(panelAnimation, value: appState.isDrawerOpen)
 
                 if appState.isDrawerOpen || appState.screen == .status {
                     drawer(size: proxy.size, palette: palette)
@@ -50,8 +51,8 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .coordinateSpace(name: "root")
-            .animation(DesignTokens.panel, value: appState.screen)
-            .animation(DesignTokens.panel, value: appState.isDrawerOpen)
+            .animation(panelAnimation, value: appState.screen)
+            .animation(panelAnimation, value: appState.isDrawerOpen)
             .onAppear {
                 if appState.screen == .connect {
                     presentConnect()
@@ -91,7 +92,7 @@ struct RootView: View {
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    withAnimation(DesignTokens.panel) {
+                    withAnimation(panelAnimation) {
                         appState.closeDrawer()
                     }
                 }
@@ -146,6 +147,13 @@ struct RootView: View {
 
     private func presentConnect() {
         guard !isClosingConnect else { return }
+
+        if reduceMotion {
+            connectVisible = true
+            connectProgress = 1
+            return
+        }
+
         connectVisible = true
         connectProgress = 0
 
@@ -161,6 +169,14 @@ struct RootView: View {
         guard !isClosingConnect else { return }
         isClosingConnect = true
 
+        if reduceMotion {
+            connectProgress = 0
+            connectVisible = false
+            isClosingConnect = false
+            appState.closeConnect()
+            return
+        }
+
         withAnimation(DesignTokens.reveal) {
             connectProgress = 0
         }
@@ -171,6 +187,11 @@ struct RootView: View {
             isClosingConnect = false
             appState.closeConnect()
         }
+    }
+
+    /// 抽屉 / 设置层的转场动画；开启「减弱动态效果」时直接切换。
+    private var panelAnimation: Animation? {
+        reduceMotion ? nil : DesignTokens.panel
     }
 }
 

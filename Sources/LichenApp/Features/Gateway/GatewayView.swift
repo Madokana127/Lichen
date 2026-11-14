@@ -12,7 +12,7 @@ struct GatewayView: View {
     let onClose: () -> Void
 
     @State private var host = "agent.example.invalid"
-    @State private var portText = "8787"
+    @State private var portText = "9119"
     @State private var method: ConnectionMethod = .gateway
     @State private var authMode: GatewayAuthMode = .token
     @State private var token = ""
@@ -147,7 +147,7 @@ struct GatewayView: View {
                         .font(.system(size: 10.5))
                         .foregroundStyle(palette.ink3)
                     fieldInput(palette: palette) {
-                        TextField("8787", text: $portText)
+                        TextField("9119", text: $portText)
                             .font(DesignTokens.mono(12))
                             .keyboardType(.numberPad)
                             .focused($focusedField, equals: .port)

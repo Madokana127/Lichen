@@ -8,8 +8,11 @@
 **Lichen** 是一个 **iOS 端应用**，定位为**电脑端的远程外壳（remote shell）**：
 通过网络连接到电脑端 Agent 暴露的**远程网关**，在 iOS 上提供终端 / 会话交互界面。
 
-本次目标：**只搭建应用框架（skeleton），不实现任何具体功能**（不写真实网络、
-不写网关协议、不写鉴权、不写终端仿真）。所有具体实现均为协议 + 占位 / stub + `TODO`。
+当前阶段：**骨架阶段已完成，真实功能与 SwiftUI 界面均已落地**（2026-11-14）。
+`LichenCore` 含网关协议、会话 / 消息 / Agent、终端缓冲与 `URLSession` 网络传输层；
+`LichenApp` 含设计系统、`AppState` 与开始 / 对话 / 状态 / 连接 / 设置五视图。
+全部占位 stub 与 `TODO` 已清零（全项目 0 处），源码内无真实网关地址或凭据。
+代码**尚未在有 Xcode 的 macOS 上编译 / 预览**（本机与 WSL 均无 Swift 工具链），见第 11 节。
 
 ## 2. 环境与约定
 
@@ -43,22 +46,26 @@
 7. UI 设计先走 HTML 预览（见第 8 节）：HTML 原型敲定后才写 SwiftUI；把敲定的原型与
    设计 token 作为 Claude Code 的输入，不让模型凭空发挥视觉。
 
-## 4. 当前状态
+## 4. 当前状态（2026-11-14）
 
-- [x] Git 仓库初始化（分支 `main`），`.gitignore`、`PROJECT_README.md` 就位
-- [x] ccms 状态核对（本轮）：无变化，详见第 5 节
-- [x] **iOS 应用框架骨架（本次任务，已完成）**：13 个 Swift 文件，结构见第 6 节
-- [x] 备用模型通道准备（本轮用户追加要求）：详见第 7 节
-- [x] 后续开发方法约定（本轮）：HTML 预览工作流 + 跨平台框架 / 桥接层方向（见第 8、9 节）
-- [x] **UI 原型 v0.1（已落地）**：`Preview/index.html` 四屏自包含原型 + `Preview/DESIGN.md` 设计规格
-- [x] **UI 原型 v0.2（本轮，已落地）**：设置页全屏、状态页 DeepSeek 形式、bar/审批配色、明亮+黑暗两套主题；验收见第 8 节与 DESIGN.md 第 6 节
-- [x] **UI 原型 v0.3（本轮，已落地）**：连接选项简化为「远程网关 / SSL」两档、修复连接页关闭闭环（反向收拢 + 恢复 Agent 浮框）；验收见 DESIGN.md 第 8 节
-- [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（**后续任务，本次不做**）
+- [x] Git 仓库、`.gitignore`、本文件就位；分支 `main`
+- [x] UI 原型 v0.1 → v0.2 → **v0.3 已敲定**：`Preview/index.html` + `Preview/DESIGN.md`
+  （明亮 / 黑暗双主题、全屏设置页、DeepSeek 式状态抽屉、两档连接、反向圆形关闭闭环）
+- [x] **真实 Swift 功能已落地**（任务 A / A2 / B）：`LichenCore` 含网关契约层、
+  会话 / 消息 / Agent / 终端、URLSession 网络传输层与单测；累计约 8,200 行
+- [x] **SwiftUI 界面已落地**（任务 C / D）：`LichenApp` 含 `DesignTokens`、`AppState`
+  与开始 / 对话 / 状态抽屉 / 连接 / 全屏设置五视图，12 个 `#Preview`
+- [x] 关闭闭环五要素齐备：来源记录 / 动态锚点 / 反向圆形收拢 / 恢复 Agent 浮框 /
+  `accessibilityReduceMotion` 分支
+- [x] 连接方式仅「远程网关 / SSL」两档；全项目无「局域网 / 中继」文案
+- [x] 全项目 `TODO` / `fatalError` = **0**；imports 仅
+  Foundation / SwiftUI / Observation / LichenCore / XCTest
+- [x] 静态自洽核对通过：31 个 Swift 文件括号配平、`DesignTokens.*` / `palette.*` /
+  `appState.*` 悬空引用 0、无真实网关地址 / 密钥
+- [ ] **未在 Xcode 编译 / 预览**：需在学校机房验证（见第 11 节）
 
-骨架验收（回同步前在 WSL 侧实测）：13 个 Swift 文件、28 处 `TODO`、
-全仓无 `URLSession` / `NWConnection` / `WebSocketTask` / `URLRequest` / 明文密钥模式、
-`GatewayClient` 仅协议声明无实现、`PROJECT_README.md` 与 `.gitignore` 的 md5 与 Windows 侧
-一致（Claude 未改动）、Claude 未执行 git 命令、未写入任何凭据。
+验收边界：以上均为静态文本 / 结构核对与真实浏览器（HTML 原型）实测，
+**不包含 Swift 编译、Xcode Preview、真机运行，也不包含与真实 Hermes 网关的端到端联通**。
 
 ## 5. ccms 状态核对（每次新任务前执行）
 
@@ -115,29 +122,29 @@ router 仍在 `127.0.0.1:8788` 运行，五档 `deepseek/deepseek-flash`（官�
 ```
 Lichen.swiftpm/
 ├── Preview/
-│   ├── index.html                   # 四屏自包含 HTML 原型（不进 SwiftPM target）
-│   └── DESIGN.md                    # 设计 token / 四屏 / 动效规格摘要
-├── .gitignore                       # Swift/Xcode、密钥、任务脚手架（Windows 侧维护）
-├── PROJECT_README.md                # 本文件（Windows 侧维护）
-├── Package.swift                    # tools 5.9 / iOS 17 / LichenCore + LichenApp 两个 library / 3 个 target
+│   ├── index.html                   # v0.3 四屏自包含 HTML 原型（不进 SwiftPM target）
+│   └── DESIGN.md                    # 设计 token / 四屏 / 动效 / SwiftUI 映射规格
+├── .gitignore / PROJECT_README.md   # Windows 侧维护
+├── Package.swift                    # tools 5.9 / iOS 17 / LichenCore + LichenApp + LichenCoreTests
 ├── Sources/
-│   ├── LichenApp/
-│   │   ├── LichenApp.swift          # @main App 入口，WindowGroup { RootView() }
-│   │   ├── RootView.swift           # 三 tab TabView（会话 / 网关 / 设置）
-│   │   └── Features/
-│   │       ├── Sessions/SessionsView.swift    # 占位列表 + 「暂无会话」
-│   │       ├── Gateway/GatewayView.swift      # 占位连接状态（.disconnected）
-│   │       └── Settings/SettingsView.swift    # 占位 Form，无配置存储
-│   └── LichenCore/
-│       ├── Gateway/
-│       │   ├── GatewayConfiguration.swift    # host / port / displayName 占位
-│       │   ├── GatewayConnectionState.swift  # 4 状态枚举
-│       │   └── GatewayClient.swift           # 仅协议 + TODO（无实现）
-│       ├── Session/
-│       │   ├── Session.swift                 # Identifiable 占位模型
-│       │   └── SessionStore.swift            # 仅协议 + TODO
-│       └── Terminal/TerminalBuffer.swift      # 仅协议 + TODO（不解析 ANSI）
-└── Tests/LichenCoreTests/LichenCoreTests.swift  # 2 个 XCTest 占位测试
+│   ├── LichenCore/                  # 纯 Swift 核心（不 import SwiftUI）
+│   │   ├── Gateway/                 # Configuration / ConnectionState / JSONRPC / Status
+│   │   │                            # GatewayClient / URLSessionGatewayClient / ReconnectPolicy / EventRouter
+│   │   ├── Session/                 # Session / SessionMessage / SessionStore（含持久化）
+│   │   ├── Agent/                   # Agent / AgentBrand / AgentStore
+│   │   └── Terminal/                # TerminalBuffer（带 ANSI 解析的有界缓冲）
+│   └── LichenApp/                   # SwiftUI 界面，只依赖 LichenCore 协议
+│       ├── LichenApp.swift          # @main 入口（library target 兼容性见第 11 节）
+│       ├── RootView.swift           # 全屏层 / 78% 抽屉 / 圆形扩散与反向收拢 / reduceMotion
+│       ├── Design/DesignTokens.swift# 两套配色 + 字体 / 间距 / 圆角 / 动效常量
+│       ├── State/AppState.swift     # @Observable 状态机（连接 / 会话 / 外观 / 关闭闭环）
+│       └── Features/
+│           ├── Start/StartView.swift        # 开始页
+│           ├── Chat/ChatView.swift          # 对话页（输入框 + bar + 审批卡片）
+│           ├── Sessions/SessionsView.swift  # 状态抽屉（分组 / 搜索 / 账户条）
+│           ├── Gateway/GatewayView.swift    # 连接页（两档 + SSL 证书区）
+│           └── Settings/SettingsView.swift  # 全屏设置页
+└── Tests/LichenCoreTests/           # 9 组单测
 ```
 
 > 用户要求预览产物另放一份：`D:\prflib\coding\swift\LichenPreview.html`
@@ -216,6 +223,8 @@ ccms --route --all deepseek deepseek-flash         # 切回官方
 - **v0.3 已落地**（本轮用户第 3、4 点）：连接方式只留「远程网关 / SSL」两档并去掉局域网文案；
   连接页关闭改为反向圆形收拢到触发按钮，从对话页进入时恢复 Agent 列表悬浮页。
   `claude -p` 以 30 轮上限 exit 1 截断，产物经静态 + 浏览器逐项复验（DESIGN.md 第 8 节）。
+- **v0.3 → SwiftUI 已落地**（本轮后续批次）：`Sources/LichenApp` 按本规格实现设计系统 /
+  `AppState` / 五视图，关闭闭环与两档连接逐项对应；见第 6、10 节与 `DESIGN.md` 第 9 节。
 
 ## 9. 架构演进与跨平台框架选型（后续，本轮不实施）
 
@@ -356,17 +365,30 @@ UI 层（可替换）     SwiftUI（现在） / 通用 UI 框架（以后）
   136,026 → 142,614 bytes，同步回 Windows 后静态 + 浏览器验收通过。
 - 更新 `Preview/DESIGN.md` 为 v0.3、更新本文件；复制便捷副本；`git add / commit`。
 
+### 2026-11-14 · Swift 真实功能 + SwiftUI 界面（本轮主任务）
+- 用户四条要求：① 用 Swift 把功能真正做出来；② 用 SwiftUI 把界面做出来；
+  ③ 连接选项只有「远程网关 / SSL」；④ 修复对话页打开连接页后的关闭逻辑。
+- 协议依据：研究本机 `D:/Hermes/hermes-agent/` 源码与文档，确认 `/api/status`
+  （`auth_required`）、`/api/ws`、token / OAuth ticket 双鉴权、JSON-RPC 2.0 换行分隔帧、
+  `gateway.ready`、审批四值、会话 REST 端点、wss 需系统信任证书；结论带文件路径 + 行号。
+- 代码改动全部走 WSL `claude -p`，分 A / A2 / B / C / D 五批，每批回同步 + 静态验收 + 提交：
+  A 网关契约层 → A2 会话 / 消息 / Agent / 终端 → B 网络传输层 → C 设计系统与五视图 → D 收尾修补。
+- 提交序列：`283b702` → `6e75bf1` → `2b4768d` → `ba45dcb` → D 收尾（本次）。
+- C 以 45 轮上限 exit 1 截断，但产物完整（9 文件 +4364 行），且顺带完成原属 D 的三屏；
+  D 遂改为小修补：补 `accessibilityReduceMotion`、默认端口 `8787 → 9119`、
+  核对 `@main` 兼容性并加注释（未改 `Package.swift`）。
+- 整体验收 17 项全 OK：TODO=0、imports 合法、31 文件括号配平、悬空引用 0、
+  两档 / 关闭五要素 / `composerLine` / 78% 抽屉 / 全屏设置 / 12 个 `#Preview` / 无凭据。
+- **未编译**：本机与 WSL 无 Swift / Xcode，仅静态自洽核对；Xcode 验证列入待办。
+
 ## 11. 待办 / 后续
 
-- [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（后续任务）
-- [x] ~~用户在内联预览中敲定 v0.2~~（2026-11-14 用户「我觉得差不多了」，v0.3 已敲定）
-- [ ] **Swift 真实功能 + SwiftUI 四屏实现**（本轮主任务）：按 Hermes 远程网关协议落地网络层，连接选项仅远程网关 / SSL
-- [ ] 敲定后按 `Preview/DESIGN.md` 把 token（含两套配色 → Asset Catalog Any/Light/Dark）映射为 SwiftUI 常量，按四屏拆视图替换三 tab 占位
-- [ ] 定稿桥接层契约（命令 / 事件 / DTO）与 IDL 形式，纳入版本管理
-- [ ] 框架选型定案（第 9.4 节）；若下沉 Rust 核心，先在 WSL 编译验证
-- [ ] 明确远程网关协议（WebSocket / HTTP / 自定义？）与鉴权方式
-- [ ] 确定工程最终形态：保持 SwiftPM 包、还是补 `.xcodeproj` / Swift Playgrounds App
-- [ ] 在有 Xcode 的 macOS 上做真实编译与模拟器运行验证
-- [x] ~~网络恢复后补做 ccms 远端 `git ls-remote` 核对~~（2026-11-14 v0.2 任务前已完成，`origin/RuRe` = `8c0bcf6`）
-- [ ] 下次有代码任务时把 token 块外那处 `alpha=0` 渐变起点变量化
-- [ ] 后续任务开始前重新核对 ccms（含第 7 节备用通道）；若官方仍繁忙按第 7 节切换
+- [ ] **在学校机房 macOS / Xcode 打开 `Package.swift`，编译并跑 `#Preview`**（最关键）：
+  重点确认 `@main` 在 library target 下是否报错；若报错，按 `LichenApp.swift` 头部注释二选一
+  （改 `.executableTarget` + `.executable` product，或去掉 `@main` 仅保留 `App` 结构供 Preview）。
+- [ ] 补齐工程最终形态：保持 SwiftPM 包，还是补 `.xcodeproj` / Swift Playgrounds App 包装。
+- [ ] 与真实 Hermes 网关端到端联调（token 模式 / OAuth ticket 模式 / wss 自签证书显式开关）。
+- [ ] 定稿桥接层契约（命令 / 事件 / DTO）与 IDL 形式，纳入版本管理；框架选型定案（第 9.4 节）。
+- [ ] 若下沉 Rust 核心，先在 WSL 编译验证（Rust + uniffi）。
+- [ ] HTML 原型 token 块外那处 `alpha=0` 渐变起点变量化（无害残留）。
+- [ ] 后续任务开始前重新核对 ccms（第 5 节）与备用通道（第 7 节）。

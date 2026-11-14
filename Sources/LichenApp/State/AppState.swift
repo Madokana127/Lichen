@@ -860,7 +860,7 @@ public final class AppState {
                 configuration: GatewayConfiguration(
                     displayName: "Claude 01",
                     host: "agent.example.invalid",
-                    port: 8787
+                    port: 9119
                 ),
                 isConnected: true
             ),
@@ -872,7 +872,7 @@ public final class AppState {
                 configuration: GatewayConfiguration(
                     displayName: "Hermes 02",
                     host: "studio.example.invalid",
-                    port: 8787
+                    port: 9119
                 ),
                 isConnected: true
             ),
@@ -897,7 +897,7 @@ public final class AppState {
                 configuration: GatewayConfiguration(
                     displayName: "OpenCode 04",
                     host: "local.example.invalid",
-                    port: 8787
+                    port: 9119
                 ),
                 isConnected: true
             )

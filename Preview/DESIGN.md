@@ -137,15 +137,15 @@
 > `linear-gradient(to bottom, rgba(247,247,243,0), var(--bg) 22%)` 渐变起点，
 > alpha=0 完全透明，暗色下无视觉影响；下次有代码任务时顺手变量化。
 
-## 7. 敲定后的落地顺序
+## 7. 落地顺序（已执行，2026-11-14）
 
-1. v0.3 已敲定（用户「我觉得差不多了」）→ 进入第 2、3 步的 Swift / SwiftUI 实现；
+1. [x] v0.3 敲定（用户「我觉得差不多了」）→ 进入 Swift / SwiftUI 实现；
    后续视觉反馈仍**先改 `index.html` 并复验** → 再更新本摘要与便捷副本。
-2. 把第 2 节 token 落成 SwiftUI `DesignTokens` 常量 / Asset Catalog；
-   **两套配色映射为 Any / Light / Dark 变体**（不要用运行时 if 判断散落在各视图）。
-3. 按第 3 节四屏拆 SwiftUI 视图，替换现有 `Sources/LichenApp` 的三 tab 占位界面；
-   视图只依赖 `LichenCore` 协议（见 `PROJECT_README.md` 第 9 节）。
-4. 学校机房 Xcode Preview / 模拟器验证，反馈回 HTML 原型迭代。
+2. [x] 第 2 节 token 落成 SwiftUI `DesignTokens` 常量：明暗两套 `ColorPalette`
+   + 字体 / 间距 / 圆角 / 动效常量（见第 9 节）。
+3. [x] 第 3 节四屏拆 SwiftUI 视图，替换 `Sources/LichenApp` 三 tab 占位界面；
+   `TabView` 已移除，视图只依赖 `LichenCore` 协议。
+4. [ ] 学校机房 Xcode Preview / 模拟器验证，反馈回 HTML 原型迭代（**待办**）。
 
 ## 8. v0.3 验收（2026-11-14）
 
@@ -162,3 +162,24 @@
   可见文本不含「局域网」。
 - `window.onerror` = **0 错误**；`claude -p --max-turns 30` 仍以 exit 1 截断
   （最终自述缺失），产物完整并逐项复验，不重跑。
+
+## 9. SwiftUI 落地映射（2026-11-14，任务 C / D）
+
+| 本规格 | SwiftUI 实现 |
+|---|---|
+| `:root` / `html[data-theme="dark"]` 双 token | `Design/DesignTokens.swift`：`ColorPalette` 明暗两套 + `DesignTokens` 常量 |
+| `--composer-line` 共用 | `ChatView` 输入框描边（:321）与 bar 背景（:392）同用 `palette.composerLine` |
+| 三 tab 占位 → 四屏 | `TabView` 移除；`RootView` 按 `AppState.screen` 切换，状态页为 78% 抽屉，连接页为圆形扩散全屏层 |
+| 78% 抽屉 + parallax | `size.width * 0.78`、底层 `scaleEffect(0.985)` + `offset(x: 18)` |
+| 全屏设置页 | `RootView` 直接叠加（`zIndex(3)` / `.move(edge: .trailing)`），全项目无 `.sheet` / `.popover` |
+| 两档连接 | `ConnectionMethod` 仅 `gateway` / `ssl`；`GatewayView` 与 `SettingsView` 分段控件一致，SSL 展开证书字段 |
+| 反向收拢 + 恢复浮框 | `AppState.ConnectSource` / `ConnectAnchor` + `RootView` 的 `GeometryReader` / `connectProgress`；`closeConnect()` 对话页来源恢复 `isAgentPopoverOpen = true` |
+| `prefers-reduced-motion` | `RootView` 的 `@Environment(\.accessibilityReduceMotion)`：为 true 时跳过扩散 / 收拢与 panel 动画 |
+| 假数据 → 可预览 | 6 个视图共 **12 个 `#Preview`**，`AppState.preview()` / `preview(screen:)` 提供假数据 |
+
+静态验收（Windows 侧，31 个 Swift 文件）：`TODO` / `fatalError` = 0、imports 仅
+Foundation / SwiftUI / Observation / LichenCore / XCTest、括号配平、
+`DesignTokens.*` / `palette.*` / `appState.*` 悬空引用 0、无「局域网 / 中继」、无真实凭据。
+
+**本机与 WSL 均无 Swift / Xcode：以上未编译、未跑 Xcode Preview**，
+需在学校机房按 `PROJECT_README.md` 第 11 节验证。
