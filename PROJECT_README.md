@@ -50,7 +50,8 @@
 - [x] **iOS 应用框架骨架（本次任务，已完成）**：13 个 Swift 文件，结构见第 6 节
 - [x] 备用模型通道准备（本轮用户追加要求）：详见第 7 节
 - [x] 后续开发方法约定（本轮）：HTML 预览工作流 + 跨平台框架 / 桥接层方向（见第 8、9 节）
-- [x] **UI 原型 v0.1（本轮，已落地）**：`Preview/index.html` 四屏自包含原型 + `Preview/DESIGN.md` 设计规格；验收见第 8 节
+- [x] **UI 原型 v0.1（已落地）**：`Preview/index.html` 四屏自包含原型 + `Preview/DESIGN.md` 设计规格
+- [x] **UI 原型 v0.2（本轮，已落地）**：设置页全屏、状态页 DeepSeek 形式、bar/审批配色、明亮+黑暗两套主题；验收见第 8 节与 DESIGN.md 第 6 节
 - [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（**后续任务，本次不做**）
 
 骨架验收（回同步前在 WSL 侧实测）：13 个 Swift 文件、28 处 `TODO`、
@@ -80,6 +81,15 @@ Windows `D:\prflib\CCMS` HEAD `8c0bcf6` 且与 `/root/CCMS` 源码零差异 → 
 用户明确「用 DeepSeek 官方 API 就行」，故本轮**未启用**第 7 节备用通道，
 `routes.json.pre-uiux.bak` 备份保留；本轮用到的 `ui-ux-pro-max` 技能已装入
 `D:\Hermes\skills\ui-ux-pro-max-plus\`。
+
+**UI v0.2 任务（新任务）开始前核对（2026-11-14）**：`ccms --version` = `0.2.1`、
+`/root/CCMS/Cargo.toml` = `0.2.1`、Windows `D:\prflib\CCMS` HEAD `8c0bcf6`、
+`rev-list --left-right HEAD...origin/RuRe` = `0 0`、Win↔WSL 源码 `diff -rq` 零差异；
+**远端 `git ls-remote` 本轮成功**：`refs/heads/RuRe` = `8c0bcf67b01c…` 与本地 HEAD 一致，
+此前「远端未刷新」的待办就此补核完成。
+`PROJECT.md`（2026-11-12 细化）明确 **1.0.0「Alkanet」仍在规划、代码一行未动**，
+0.2.1 技术基线全部有效 → **ccms 无变化，命令无需调整**。
+router 仍在 `127.0.0.1:8788` 运行，五档 `deepseek/deepseek-flash`（官方通道，未启用备用）。
 
 本轮与 ccms 相关的其它事实 / 踩坑：
 
@@ -124,6 +134,10 @@ Lichen.swiftpm/
 │       └── Terminal/TerminalBuffer.swift      # 仅协议 + TODO（不解析 ANSI）
 └── Tests/LichenCoreTests/LichenCoreTests.swift  # 2 个 XCTest 占位测试
 ```
+
+> 用户要求预览产物另放一份：`D:\prflib\coding\swift\LichenPreview.html`
+> （与 `Preview/index.html` 内容一致的便捷副本，便于直接双击打开）。
+> **Git 受控源仍是仓库内 `Preview/index.html`**，每次视觉变更后同步覆盖该副本。
 
 ## 7. 备用模型通道（本轮用户追加）
 
@@ -183,10 +197,16 @@ ccms --route --all deepseek deepseek-flash         # 切回官方
 - 视觉起点可复用 `popular-web-designs` 模板；终端 / 开发者工具调性可参考
   Ollama、OpenCode、x.ai、VoltAgent、Linear、Warp（取设计原则，不抄 proprietary 版式）。
 - 每次视觉变更先改 HTML 并在浏览器确认，再改 SwiftUI；SwiftUI 侧调整反向同步回 HTML。
-  需要在聊天内直接看时用 `::preview{file=...}` 内联预览。
-- **本轮已落地**：`Preview/index.html`（四屏自包含原型）与 `Preview/DESIGN.md`
-  （token / 四屏 / 动效规格）。设计由 DeepSeek Flash 依 `ui-ux-pro-max` 资源库定稿，
-  风格「Lichen daylight」；**等待用户敲定**，敲定后按 DESIGN.md 第 7 节映射 SwiftUI。
+  - 需要在聊天内直接看时用 `::preview{file=...}` 内联预览。
+  - 预览产物另存一份到 `D:\prflib\coding\swift\LichenPreview.html`（用户要求），
+    与仓库内 `Preview/index.html` 保持一致；仓库内那份是 Git 受控源。
+- **v0.1 已落地**：四屏自包含原型 + `Preview/DESIGN.md`（token / 四屏 / 动效规格），
+  风格「Lichen daylight」，由 DeepSeek Flash 依 `ui-ux-pro-max` 资源库定稿。
+- **v0.2 已落地**（本轮用户三条意见）：设置页全屏层、状态页参考 DeepSeek 形式
+  （78% 抽屉 / 搜索胶囊 / 弱化分组 / 纯文字行 / 账户条 / 底层 parallax）、
+  bar 与对话框描边共用 `--composer-line`、审批改浅色卡片、
+  **明亮 + 黑暗两套完整配色**（顶部调试条与设置页「外观」双入口切换，localStorage 记忆）。
+  验收数据见 `Preview/DESIGN.md` 第 6 节；**仍等待用户敲定**，敲定后按第 7 节映射 SwiftUI。
 
 ## 9. 架构演进与跨平台框架选型（后续，本轮不实施）
 
@@ -290,15 +310,42 @@ UI 层（可替换）     SwiftUI（现在） / 通用 UI 框架（以后）
 - 踩坑：视觉模型对截图的描述存在幻觉（把 Agent 名说错、把网关连接页说成
   「配置 GPT-4o / api.openai.com」），**以 `grep` 源码关键词为准**，不采信截图口述。
 
+### 2026-11-14 · UI 原型 v0.2（本轮，代码改动走 WSL）
+- 用户三条意见：① 设置页全屏不要悬浮；② 状态页参考 DeepSeek 手机 app 的动效与形式；
+  ③ bar/审批配色不喜欢，bar 颜色须与对话框描边一致、整体协调，并提供明亮+黑暗两套配色；
+  另要求 preview 产物放到 `D:\prflib\coding\swift`。
+- 新任务开始前核对 ccms：无变化，且**远端 ls-remote 本轮成功**，
+  `origin/RuRe` = `8c0bcf6` 与本地一致（详见第 5 节）。
+- 用户发来两张 DeepSeek 手机 app 截图；因路由到 `deepseek-flash`（文本模型），
+  把截图人工观察写成 `REFERENCE.md`（抽屉宽度 / scrim / 搜索框前置 / 弱化分组 /
+  纯文字大行高 / 底部账户条 / 左滑入），与 `TASK.md`（定点修改、禁止重写全文件）
+  一起作为模型输入。
+- `claude -p --max-turns 40` 仍因达到上限以 exit 1 截断（最终自述未输出），
+  但产物完整：126130 → 136026 字节，四类改动全部落盘并经实测确认。
+- 验收（真实浏览器 + 静态检查）：0 外链、`node --check` 通过、
+  设置层 `inset:0` 且宽高 = 父容器（全屏）、`settingsBack` 可返回；
+  抽屉 78% / `max-width:78%` / `box-shadow:none`、搜索胶囊存在；
+  `.dock` border 与 `.dock-bar` background 在明亮/暗色下**像素级同色**
+  （`rgba(26,30,25,0.12)` / `rgba(243,244,238,0.12)`）；
+  审批卡片明亮 `rgb(255,255,255)`、暗色 `rgb(22,26,22)`；
+  主题切换 body 背景 `rgb(231,232,226)` → `rgb(8,10,8)`、`localStorage=lichen-theme`；
+  圆形扩散（`circle(727px→832px)`）/ 抽屉 / Agent 浮框仍触发、0 JS 错误；
+  两份文档 md5 未变。四张放大截图视觉复核通过。
+- 已知无害残留：token 定义块外仍有 1 处 `linear-gradient(... rgba(...,0) ...)`
+  渐变起点（alpha=0，完全透明），暗色下无视觉影响；下次有代码任务时顺手变量化。
+- 更新 `Preview/DESIGN.md` 为 v0.2、更新本文件；
+  复制便捷副本 `D:\prflib\coding\swift\LichenPreview.html`；`git add / commit`。
+
 ## 11. 待办 / 后续
 
 - [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（后续任务）
-- [ ] 用户在内联预览中敲定 `Preview/index.html`（或提修改意见 → 改 HTML → 复验）
-- [ ] 敲定后按 `Preview/DESIGN.md` 把 token 映射为 SwiftUI 常量，按四屏拆视图替换三 tab 占位
+- [ ] 用户在内联预览中敲定 v0.2（含明亮/黑暗两套配色取舍；或提修改意见 → 改 HTML → 复验）
+- [ ] 敲定后按 `Preview/DESIGN.md` 把 token（含两套配色 → Asset Catalog Any/Light/Dark）映射为 SwiftUI 常量，按四屏拆视图替换三 tab 占位
 - [ ] 定稿桥接层契约（命令 / 事件 / DTO）与 IDL 形式，纳入版本管理
 - [ ] 框架选型定案（第 9.4 节）；若下沉 Rust 核心，先在 WSL 编译验证
 - [ ] 明确远程网关协议（WebSocket / HTTP / 自定义？）与鉴权方式
 - [ ] 确定工程最终形态：保持 SwiftPM 包、还是补 `.xcodeproj` / Swift Playgrounds App
 - [ ] 在有 Xcode 的 macOS 上做真实编译与模拟器运行验证
-- [ ] 网络恢复后补做 ccms 远端 `git ls-remote` 核对；若 ccms 升级，重新核对第 5 节并按需调整命令
+- [x] ~~网络恢复后补做 ccms 远端 `git ls-remote` 核对~~（2026-11-14 v0.2 任务前已完成，`origin/RuRe` = `8c0bcf6`）
+- [ ] 下次有代码任务时把 token 块外那处 `alpha=0` 渐变起点变量化
 - [ ] 后续任务开始前重新核对 ccms（含第 7 节备用通道）；若官方仍繁忙按第 7 节切换
