@@ -13,22 +13,21 @@ final class LichenCoreTests: XCTestCase {
         XCTAssertLessThanOrEqual(session.createdAt, after)
     }
 
-    func testBoundedTerminalBufferTrimsOldestCharacters() {
-        var buffer = BoundedTerminalBuffer(capacity: 5)
-        buffer.append("abc")
-        buffer.append("def")
+    func testBoundedTerminalBufferTrimsOldestLines() {
+        let buffer = BoundedTerminalBuffer(capacity: 2)
+        buffer.append("a\nb\nc")
 
-        XCTAssertEqual(buffer.capacity, 5)
-        XCTAssertEqual(buffer.snapshot, "bcdef")
+        XCTAssertEqual(buffer.capacity, 2)
+        XCTAssertEqual(buffer.lines, ["b", "c"])
+        XCTAssertEqual(buffer.snapshot, "b\nc")
     }
 
-    func testBoundedTerminalBufferDropsWholeChunks() {
-        var buffer = BoundedTerminalBuffer(capacity: 4)
-        buffer.append("ab")
-        buffer.append("cd")
-        buffer.append("ef")
+    func testBoundedTerminalBufferAppendsRawData() async {
+        let buffer = BoundedTerminalBuffer(capacity: 3)
+        await buffer.append(Data("one\ntwo".utf8))
 
-        XCTAssertEqual(buffer.snapshot, "cdef")
+        XCTAssertEqual(buffer.lines, ["one", "two"])
+        XCTAssertEqual(buffer.snapshot, "one\ntwo")
     }
 
     func testInMemorySessionStoreLifecycle() async throws {
