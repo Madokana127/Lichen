@@ -52,6 +52,7 @@
 - [x] 后续开发方法约定（本轮）：HTML 预览工作流 + 跨平台框架 / 桥接层方向（见第 8、9 节）
 - [x] **UI 原型 v0.1（已落地）**：`Preview/index.html` 四屏自包含原型 + `Preview/DESIGN.md` 设计规格
 - [x] **UI 原型 v0.2（本轮，已落地）**：设置页全屏、状态页 DeepSeek 形式、bar/审批配色、明亮+黑暗两套主题；验收见第 8 节与 DESIGN.md 第 6 节
+- [x] **UI 原型 v0.3（本轮，已落地）**：连接选项简化为「远程网关 / SSL」两档、修复连接页关闭闭环（反向收拢 + 恢复 Agent 浮框）；验收见 DESIGN.md 第 8 节
 - [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（**后续任务，本次不做**）
 
 骨架验收（回同步前在 WSL 侧实测）：13 个 Swift 文件、28 处 `TODO`、
@@ -87,6 +88,10 @@ Windows `D:\prflib\CCMS` HEAD `8c0bcf6` 且与 `/root/CCMS` 源码零差异 → 
 `rev-list --left-right HEAD...origin/RuRe` = `0 0`、Win↔WSL 源码 `diff -rq` 零差异；
 **远端 `git ls-remote` 本轮成功**：`refs/heads/RuRe` = `8c0bcf67b01c…` 与本地 HEAD 一致，
 此前「远端未刷新」的待办就此补核完成。
+
+**v0.3 / Swift 实现任务（新任务）开始前核对（2026-11-14）**：`ccms --version` = `0.2.1`；
+Windows HEAD 与 `/root/CCMS` 源码零差异；`origin/RuRe` 与本地一致；router 运行中，
+五档均为官方 `deepseek/deepseek-flash`；`PROJECT.md` 含 Alkanet 1.0.0 规划但代码未动 → 判为无变化。
 `PROJECT.md`（2026-11-12 细化）明确 **1.0.0「Alkanet」仍在规划、代码一行未动**，
 0.2.1 技术基线全部有效 → **ccms 无变化，命令无需调整**。
 router 仍在 `127.0.0.1:8788` 运行，五档 `deepseek/deepseek-flash`（官方通道，未启用备用）。
@@ -207,6 +212,10 @@ ccms --route --all deepseek deepseek-flash         # 切回官方
   bar 与对话框描边共用 `--composer-line`、审批改浅色卡片、
   **明亮 + 黑暗两套完整配色**（顶部调试条与设置页「外观」双入口切换，localStorage 记忆）。
   验收数据见 `Preview/DESIGN.md` 第 6 节；**仍等待用户敲定**，敲定后按第 7 节映射 SwiftUI。
+
+- **v0.3 已落地**（本轮用户第 3、4 点）：连接方式只留「远程网关 / SSL」两档并去掉局域网文案；
+  连接页关闭改为反向圆形收拢到触发按钮，从对话页进入时恢复 Agent 列表悬浮页。
+  `claude -p` 以 30 轮上限 exit 1 截断，产物经静态 + 浏览器逐项复验（DESIGN.md 第 8 节）。
 
 ## 9. 架构演进与跨平台框架选型（后续，本轮不实施）
 
@@ -336,10 +345,22 @@ UI 层（可替换）     SwiftUI（现在） / 通用 UI 框架（以后）
 - 更新 `Preview/DESIGN.md` 为 v0.2、更新本文件；
   复制便捷副本 `D:\prflib\coding\swift\LichenPreview.html`；`git add / commit`。
 
+### 2026-11-14 · UI 原型 v0.3 + 进入 SwiftUI 实现阶段
+- 用户确认 v0.2 风格「差不多了」，要求：① Swift 真实功能；② SwiftUI 界面；
+  ③ 连接选项只有远程网关和 SSL；④ 修复对话页打开连接页后的关闭逻辑。
+- 连接选项含义经确认采用「两档分段控件」形式（去掉局域网 / 中继 / 手动）。
+- 「远程网关和 SSL 参考 Hermes 的实现方法」→ 查本机 `D:/Hermes/hermes-agent/` 源码：
+  `connection-config.ts` 给出 URL 规范化、`ws(s)://host/api/ws?token=|?ticket=`、
+  token / OAuth ticket 双鉴权模型，作为 Swift 网络层依据。
+- 代码改动走 WSL：`claude -p --max-turns 30`（exit 1 截断），`index.html`
+  136,026 → 142,614 bytes，同步回 Windows 后静态 + 浏览器验收通过。
+- 更新 `Preview/DESIGN.md` 为 v0.3、更新本文件；复制便捷副本；`git add / commit`。
+
 ## 11. 待办 / 后续
 
 - [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（后续任务）
-- [ ] 用户在内联预览中敲定 v0.2（含明亮/黑暗两套配色取舍；或提修改意见 → 改 HTML → 复验）
+- [x] ~~用户在内联预览中敲定 v0.2~~（2026-11-14 用户「我觉得差不多了」，v0.3 已敲定）
+- [ ] **Swift 真实功能 + SwiftUI 四屏实现**（本轮主任务）：按 Hermes 远程网关协议落地网络层，连接选项仅远程网关 / SSL
 - [ ] 敲定后按 `Preview/DESIGN.md` 把 token（含两套配色 → Asset Catalog Any/Light/Dark）映射为 SwiftUI 常量，按四屏拆视图替换三 tab 占位
 - [ ] 定稿桥接层契约（命令 / 事件 / DTO）与 IDL 形式，纳入版本管理
 - [ ] 框架选型定案（第 9.4 节）；若下沉 Rust 核心，先在 WSL 编译验证

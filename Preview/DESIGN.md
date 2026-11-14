@@ -1,4 +1,4 @@
-# Lichen UI 原型 · 设计规格（v0.2 · 待用户敲定）
+# Lichen UI 原型 · 设计规格（v0.3 · 已敲定，进入 SwiftUI 实现）
 
 > 对应原型：`Preview/index.html`（单文件自包含 HTML，390 × 844 手机框内四屏切换）。
 > 便捷副本：`D:\prflib\coding\swift\LichenPreview.html`（内容一致，便于直接双击打开；
@@ -6,7 +6,16 @@
 > token 以 HTML `:root`（明亮）与 `html[data-theme="dark"]`（黑暗）为唯一事实来源；
 > 若本摘要与 HTML 不一致，改 HTML 后重新生成本摘要。
 
-## 0. v0.2 相对 v0.1 的变更（对应用户三条意见）
+## 0. 各版本变更
+
+### v0.3（对应本轮第 3、4 点）
+
+| # | 用户意见 | 落地 |
+|---|---|---|
+| 3 | 连接选项只有「远程网关」和「SSL」两种，不管局域网形式 | 设置页与连接页的「连接方式」分段控件统一为两档 `data-method="gateway" / "ssl"`，删除「局域网 / 中继 / 手动」及全部局域网文案（grep 命中 **0**）；切到 SSL 时 `#sslFields` 展开（允许自签名证书、验证 TLS 证书），选中态写入 `localStorage['lichen-connect-method']` |
+| 4 | 对话页打开连接页后关闭逻辑不对 | 新增 `connectSource` / `connectTrigger` / `connectAnchor` / `connectReturn`；关闭时用 `clip-path: circle()` **反向收拢到触发元素中心**（`getBoundingClientRect()` 动态计算）；来源 `chat` 收拢结束后**恢复 `agentPop` 为打开**，来源 `start` 收拢到底部加号且不恢复浮框；`prefers-reduced-motion` 下直接切换、关闭后无内联样式残留 |
+
+### v0.2（对应用户三条意见）
 
 | # | 用户意见 | 落地 |
 |---|---|---|
@@ -130,10 +139,26 @@
 
 ## 7. 敲定后的落地顺序
 
-1. 用户在内联预览中确认 v0.2（含两套配色的取舍）或提出修改 →
-   **先改 `index.html` 并复验** → 再更新本摘要与便捷副本。
+1. v0.3 已敲定（用户「我觉得差不多了」）→ 进入第 2、3 步的 Swift / SwiftUI 实现；
+   后续视觉反馈仍**先改 `index.html` 并复验** → 再更新本摘要与便捷副本。
 2. 把第 2 节 token 落成 SwiftUI `DesignTokens` 常量 / Asset Catalog；
    **两套配色映射为 Any / Light / Dark 变体**（不要用运行时 if 判断散落在各视图）。
 3. 按第 3 节四屏拆 SwiftUI 视图，替换现有 `Sources/LichenApp` 的三 tab 占位界面；
    视图只依赖 `LichenCore` 协议（见 `PROJECT_README.md` 第 9 节）。
 4. 学校机房 Xcode Preview / 模拟器验证，反馈回 HTML 原型迭代。
+
+## 8. v0.3 验收（2026-11-14）
+
+- 静态：142,614 bytes；`局域网` **0** 命中、`远程网关`/`SSL` 各 9 处、`中继` 0、
+  旧「手动」档 0；`getBoundingClientRect` 3 处、`circle(` 3 处、
+  `prefers-reduced-motion` 2 处；0 外链；内嵌 JS `node --check` 通过；
+  关键 id、`--composer-line`、`html[data-theme="dark"]`、`.settings-layer` 全部保留。
+- 关闭闭环（浏览器实测）：对话页 `agentTrigger` → `popAddAgent` 扩散锚点
+  `352px 73.5px`；点 `connectBack` 后收拢中间态 `circle(708.772px at 352px 73.5px)`，
+  结束后 `agentPop` 恢复 `is-open`、`connectLayer` 隐藏且 `pointer-events:none`、
+  屏幕中心命中测试穿透到 `agent-tile`、内联样式 `None`（无残留）。
+- 两档联动：`data-method="gateway"/"ssl"`；切到 SSL 时 `#sslFields`
+  `display:none → block`，`localStorage['lichen-connect-method']='ssl'`；
+  可见文本不含「局域网」。
+- `window.onerror` = **0 错误**；`claude -p --max-turns 30` 仍以 exit 1 截断
+  （最终自述缺失），产物完整并逐项复验，不重跑。

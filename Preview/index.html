@@ -1972,6 +1972,13 @@ code {
   pointer-events: auto;
   transition: clip-path var(--dur-reveal) var(--ease-out), visibility 0s linear 0s;
 }
+/* 关闭：反向圆形收拢到触发锚点 */
+.connect-layer.is-closing {
+  clip-path: circle(0px at var(--reveal-x, 50%) var(--reveal-y, 100%));
+  visibility: visible;
+  pointer-events: none;
+  transition: clip-path var(--dur-reveal) var(--ease), visibility 0s linear var(--dur-reveal);
+}
 .connect-inner {
   display: flex;
   flex-direction: column;
@@ -2076,6 +2083,14 @@ code {
 .field-hint code { font-size: 9px; padding: 1px 3px; }
 .field + .field { margin-top: 11px; }
 .form-section .seg { margin-top: 12px; }
+.ssl-fields {
+  margin-top: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.ssl-fields .switch-row:last-of-type { border-bottom: 0; }
 .last-seen {
   display: flex;
   align-items: center;
@@ -2355,7 +2370,7 @@ code {
                 <span class="logo-tag">标志占位</span>
               </div>
             </div>
-            <span class="net-pill"><i class="dot" aria-hidden="true"></i>局域网 · 已连接</span>
+            <span class="net-pill"><i class="dot" aria-hidden="true"></i><span id="netPillText">远程网关 · 已连接</span></span>
           </header>
 
           <div class="greeting">
@@ -2742,19 +2757,19 @@ code {
                   <strong>网关已连接</strong>
                   <span class="latency">24 ms</span>
                 </div>
-                <p>局域网 · TLS 1.3 · 最后同步 14:31:08</p>
+                <p id="connectionSummary">远程网关 · TLS 1.3 · 最后同步 14:31:08</p>
                 <button type="button" class="btn-mini" id="reconnectBtn">重新连接</button>
               </div>
             </section>
 
             <section class="settings-group" aria-labelledby="setMethod">
               <h3 id="setMethod">连接方式</h3>
-              <div class="seg" data-seg role="group" aria-label="连接方式">
-                <button type="button" class="is-active" aria-pressed="true">局域网</button>
-                <button type="button" aria-pressed="false">中继</button>
-                <button type="button" aria-pressed="false">手动</button>
+              <div class="seg" data-seg id="settingsMethodSeg" role="group" aria-label="连接方式">
+                <button type="button" class="is-active" data-method="gateway" aria-pressed="true">远程网关</button>
+                <button type="button" data-method="ssl" aria-pressed="false">SSL</button>
               </div>
-              <p class="setting-hint">局域网：iPhone 与电脑处于同一 Wi-Fi，直连可降低延迟。</p>
+              <p class="setting-hint" id="settingsMethodHint">远程网关：连接电脑端 Agent 暴露的网关地址；SSL 在此基础上启用 wss / TLS 加密。</p>
+              <p class="setting-hint" id="settingsSslHint" hidden>SSL：证书校验与自签名证书选项在连接页的证书区域配置。</p>
             </section>
 
             <section class="settings-group" aria-labelledby="setAgent">
@@ -2824,11 +2839,11 @@ code {
                 <span class="eyebrow">新连接</span>
                 <h1>连接 Agent</h1>
               </div>
-              <span class="head-tag">仅本机</span>
+              <span class="head-tag">网关</span>
             </header>
 
             <div class="connect-scroll" id="connectScroll">
-              <p class="connect-lead">接入电脑端网关。原型不发起网络请求，也不保存凭据。</p>
+              <p class="connect-lead">通过远程网关接入电脑端 Agent；选择 SSL 时以 wss / TLS 加密连接。原型不发起网络请求，也不保存凭据。</p>
 
               <section class="form-section" aria-labelledby="secGateway">
                 <div class="form-head">
@@ -2845,11 +2860,20 @@ code {
                     <input type="text" id="gatewayPort" value="8787" inputmode="numeric" autocomplete="off" aria-label="网关端口">
                   </label>
                 </div>
-                <p class="field-hint">支持局域网 mDNS 名称、Tailscale 私有 IP 或公网域名。</p>
+                <p class="field-hint">填写电脑端 Agent 暴露的网关主机地址；SSL 模式使用 wss / TLS 加密连接。</p>
                 <div class="seg" data-seg id="methodSeg" role="group" aria-label="连接方式">
-                  <button type="button" class="is-active" aria-pressed="true">局域网</button>
-                  <button type="button" aria-pressed="false">Tailscale</button>
-                  <button type="button" aria-pressed="false">手动</button>
+                  <button type="button" class="is-active" data-method="gateway" aria-pressed="true">远程网关</button>
+                  <button type="button" data-method="ssl" aria-pressed="false">SSL</button>
+                </div>
+                <div class="ssl-fields" id="sslFields" hidden>
+                  <label class="switch-row">
+                    <span class="switch-copy"><strong>允许自签名证书</strong><small>网关使用自签名证书时开启</small></span>
+                    <span class="switch"><input type="checkbox" id="allowSelfSigned" aria-label="允许自签名证书"><span></span></span>
+                  </label>
+                  <label class="switch-row">
+                    <span class="switch-copy"><strong>验证 TLS 证书</strong><small>自签名证书需先在系统中信任</small></span>
+                    <span class="switch"><input type="checkbox" id="verifyTlsCert" checked aria-label="验证 TLS 证书"><span></span></span>
+                  </label>
                 </div>
                 <p class="last-seen"><i class="dot" aria-hidden="true"></i>上次连接 · 今天 14:06 · 24 ms</p>
               </section>
@@ -2860,15 +2884,15 @@ code {
                   <span class="step-index">02 / 04</span>
                 </div>
                 <div class="seg" data-seg id="authSeg" role="group" aria-label="鉴权方式">
-                  <button type="button" class="is-active" aria-pressed="true" data-auth="pairing">配对码</button>
-                  <button type="button" aria-pressed="false" data-auth="token">访问令牌</button>
+                  <button type="button" class="is-active" aria-pressed="true" data-auth="token">访问令牌</button>
+                  <button type="button" aria-pressed="false" data-auth="pairing">配对码</button>
                   <button type="button" aria-pressed="false" data-auth="cert">设备证书</button>
                 </div>
                 <label class="field" style="margin-top:12px">
-                  <span id="authLabel">配对码</span>
-                  <input type="text" id="authInput" placeholder="6 位配对码" autocomplete="off" spellcheck="false" aria-label="配对码">
+                  <span id="authLabel">访问令牌</span>
+                  <input type="password" id="authInput" placeholder="粘贴令牌（原型不回显）" autocomplete="off" spellcheck="false" aria-label="访问令牌">
                 </label>
-                <p class="field-hint" id="authHint">在电脑端运行 <code>lichen pair</code> 获取，一次性有效。</p>
+                <p class="field-hint" id="authHint">令牌由电脑端网关生成，可随时吊销。</p>
               </section>
 
               <section class="form-section" aria-labelledby="secBrand">
@@ -2908,16 +2932,12 @@ code {
               <section class="advanced-section" aria-labelledby="secAdvanced">
                 <button type="button" class="advanced-toggle" id="advancedToggle" aria-expanded="false" aria-controls="advancedPanel">
                   <strong id="secAdvanced">高级</strong>
-                  <span class="adv-meta">TLS · 超时 · 自定义头</span>
+                  <span class="adv-meta">超时 · 自定义头</span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
                 </button>
                 <div class="advanced-body" id="advancedPanel">
                   <div>
                     <div class="advanced-inner">
-                      <label class="switch-row">
-                        <span class="switch-copy"><strong>验证 TLS 证书</strong><small>自签名证书需要手动信任后才能连接</small></span>
-                        <span class="switch"><input type="checkbox" checked aria-label="验证 TLS 证书"><span></span></span>
-                      </label>
                       <div class="setting">
                         <div class="setting-label"><span>连接超时</span><span>timeout</span></div>
                         <div class="seg" data-seg role="group" aria-label="连接超时">
@@ -2987,6 +3007,11 @@ code {
 
   var activeTile = null;
   var connectOpener = null;
+  var connectSource = 'other';
+  var connectTrigger = null;
+  var connectAnchor = null;
+  var connectReturn = { screen: 'start', drawer: false, settings: false };
+  var connectClosing = false;
 
   var settingsPane = $('#settingsPane');
   var drawerName = $('#drawerName');
@@ -3097,7 +3122,7 @@ code {
         if (!connectOpen) openConnect(null);
         return;
       }
-      if (connectOpen) closeConnect({ restoreFocus: false });
+      if (connectOpen) closeConnect({ restoreFocus: false, restoreSource: false });
       closePopover(false);
       if (target === 'start') {
         closeDrawer(false);
@@ -3558,6 +3583,55 @@ code {
     });
   });
 
+  /* ── Connection method · remote gateway / SSL ─── */
+  var CONNECT_METHOD_KEY = 'lichen-connect-method';
+  var connectMethod = 'gateway';
+  var settingsMethodSeg = $('#settingsMethodSeg');
+  var connectMethodSeg = $('#methodSeg');
+  var sslFields = $('#sslFields');
+  var settingsSslHint = $('#settingsSslHint');
+  var netPillText = $('#netPillText');
+  var connectionSummary = $('#connectionSummary');
+
+  function normalizeConnectMethod(value) {
+    return value === 'ssl' ? 'ssl' : 'gateway';
+  }
+
+  function applyConnectMethod(value, persist) {
+    connectMethod = normalizeConnectMethod(value);
+    [settingsMethodSeg, connectMethodSeg].forEach(function (group) {
+      if (!group) return;
+      $$('button', group).forEach(function (button) {
+        var active = button.dataset.method === connectMethod;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    });
+    if (sslFields) sslFields.hidden = connectMethod !== 'ssl';
+    if (settingsSslHint) settingsSslHint.hidden = connectMethod !== 'ssl';
+    if (netPillText) netPillText.textContent = (connectMethod === 'ssl' ? 'SSL' : '远程网关') + ' · 已连接';
+    if (connectionSummary) {
+      connectionSummary.textContent = (connectMethod === 'ssl' ? 'SSL' : '远程网关') + ' · TLS 1.3 · 最后同步 14:31:08';
+    }
+    if (persist !== false) {
+      try { localStorage.setItem(CONNECT_METHOD_KEY, connectMethod); } catch (error) {}
+    }
+  }
+
+  [settingsMethodSeg, connectMethodSeg].forEach(function (group) {
+    if (!group) return;
+    group.addEventListener('click', function (event) {
+      var button = event.target.closest('button[data-method]');
+      if (!button || !group.contains(button)) return;
+      applyConnectMethod(button.dataset.method, true);
+    });
+  });
+
+  var savedConnectMethod = null;
+  try { savedConnectMethod = localStorage.getItem(CONNECT_METHOD_KEY); } catch (error) {}
+  /* 旧三档值等历史取值一律回落为远程网关 */
+  applyConnectMethod(savedConnectMethod, false);
+
   var authGroup = $('#authSeg');
   var authCopy = {
     pairing: { label: '配对码', placeholder: '6 位配对码', type: 'text', hint: '在电脑端运行 lichen pair 获取，一次性有效。' },
@@ -3621,28 +3695,107 @@ code {
     return { x: x, y: y, radius: Math.ceil(radius + 48) };
   }
 
-  function openConnect(opener) {
+  function connectEntry(opener) {
+    var trigger = opener || null;
+    var source = 'other';
+    if (trigger && trigger.id === 'fabConnect') {
+      source = 'start';
+    } else if (trigger && trigger.closest && trigger.closest('.agent-pop')) {
+      source = 'chat';
+      trigger = agentTrigger;
+    } else if (trigger === agentTrigger) {
+      source = 'chat';
+    }
+    return { source: source, trigger: trigger };
+  }
+
+  function setConnectLocked(locked) {
+    [$('#fabConnect'), agentTrigger, $('#popAddAgent'), $('#connectBack'), $('#saveBtn')].forEach(function (button) {
+      if (button) button.disabled = locked;
+    });
+  }
+
+  function finishConnectClose(restoreFocus, restoreSource) {
     window.clearTimeout(closeConnectTimer);
+    closeConnectTimer = 0;
+    connectLayer.classList.remove('is-closing');
+    connectLayer.style.removeProperty('--reveal-x');
+    connectLayer.style.removeProperty('--reveal-y');
+    connectLayer.style.removeProperty('--reveal-r');
+    if (!connectLayer.getAttribute('style')) connectLayer.removeAttribute('style');
+    connectLayer.setAttribute('aria-hidden', 'true');
+    setConnectLocked(false);
+    connectClosing = false;
+
+    var focusTarget = null;
+    if (restoreSource && connectSource === 'start') {
+      showBase('start');
+      closePopover(false);
+      focusTarget = $('#fabConnect');
+    } else if (restoreSource && connectSource === 'chat') {
+      showBase('chat');
+      openPopover();
+      focusTarget = agentTrigger;
+    } else if (restoreSource) {
+      showBase(connectReturn.screen);
+      if (connectReturn.drawer) {
+        openDrawer();
+        if (connectReturn.settings) showSettingsPane(true);
+      } else {
+        focusTarget = connectTrigger;
+      }
+    }
+
+    if (restoreFocus && focusTarget && focusTarget.isConnected) {
+      window.requestAnimationFrame(function () {
+        if (focusTarget.isConnected) focusTarget.focus({ preventScroll: true });
+      });
+    }
+
+    connectSource = 'other';
+    connectTrigger = null;
+    connectAnchor = null;
+    connectOpener = null;
+    announce('已返回');
+  }
+
+  function openConnect(opener) {
+    if (connectOpen || connectClosing) return;
+    window.clearTimeout(closeConnectTimer);
+
+    var entry = connectEntry(opener);
+    connectSource = entry.source;
+    connectTrigger = entry.trigger;
+    connectOpener = opener || null;
+    connectReturn = { screen: baseScreen, drawer: drawerOpen, settings: settingsOpen };
+
+    var origin = computeRevealOrigin(connectTrigger);
+    connectAnchor = { x: origin.x, y: origin.y };
+
     closePopover(false);
     closeDrawer(false);
-    if (connectOpen) return;
 
     connectOpen = true;
-    connectOpener = opener || null;
-
-    var origin = computeRevealOrigin(connectOpener);
+    connectLayer.classList.remove('is-closing');
     connectLayer.style.setProperty('--reveal-x', origin.x.toFixed(1) + 'px');
     connectLayer.style.setProperty('--reveal-y', origin.y.toFixed(1) + 'px');
     connectLayer.style.setProperty('--reveal-r', origin.radius + 'px');
     connectScroll.scrollTop = 0;
     resetTestStatus();
 
-    void connectLayer.offsetWidth;
-    window.requestAnimationFrame(function () {
+    if (reduced()) {
       connectLayer.classList.add('is-open');
       syncUIState();
       setNav('connect');
-    });
+    } else {
+      void connectLayer.offsetWidth;
+      window.requestAnimationFrame(function () {
+        if (!connectOpen) return;
+        connectLayer.classList.add('is-open');
+        syncUIState();
+        setNav('connect');
+      });
+    }
     announce('连接 Agent 页面已打开');
     window.setTimeout(function () {
       if (connectOpen) $('#connectBack').focus({ preventScroll: true });
@@ -3650,30 +3803,43 @@ code {
   }
 
   function closeConnect(options) {
-    if (!connectOpen) return;
+    if (!connectOpen || connectClosing) return;
     var opts = options || {};
+    var restoreFocus = opts.restoreFocus !== false;
+    var restoreSource = opts.restoreSource !== false;
+
     connectOpen = false;
+    connectClosing = true;
+    setConnectLocked(true);
+
+    var anchor = connectAnchor || computeRevealOrigin(connectTrigger || null);
+    if (connectSource === 'start') anchor = computeRevealOrigin($('#fabConnect'));
+    else if (connectSource === 'chat') anchor = computeRevealOrigin(agentTrigger);
+
+    connectLayer.style.setProperty('--reveal-x', anchor.x.toFixed(1) + 'px');
+    connectLayer.style.setProperty('--reveal-y', anchor.y.toFixed(1) + 'px');
     connectLayer.classList.remove('is-open');
+    connectLayer.classList.add('is-closing');
+
     syncUIState();
-    setNav(baseScreen);
-    announce('已返回');
+    setNav(restoreSource ? connectReturn.screen : baseScreen);
 
-    var fallback = baseScreen === 'start' ? $('#fabConnect') : agentTrigger;
-    var target = connectOpener;
-    if (!target || !target.isConnected || target.closest('.agent-pop')) target = fallback;
-
-    if (opts.restoreFocus !== false) {
-      window.setTimeout(function () {
-        if (target && target.isConnected) target.focus({ preventScroll: true });
-      }, reduced() ? 0 : 120);
+    if (reduced()) {
+      finishConnectClose(restoreFocus, restoreSource);
+      return;
     }
+
     closeConnectTimer = window.setTimeout(function () {
-      connectLayer.setAttribute('aria-hidden', 'true');
-    }, reduced() ? 0 : 560);
+      finishConnectClose(restoreFocus, restoreSource);
+    }, 560);
   }
 
   $('#fabConnect').addEventListener('click', function () { openConnect(this); });
   $('#connectBack').addEventListener('click', function () { closeConnect(); });
+  var reconnectBtn = $('#reconnectBtn');
+  if (reconnectBtn) {
+    reconnectBtn.addEventListener('click', function () { openConnect(this); });
+  }
 
   /* ── Test / save (no network) ─────────────────── */
   var testBtn = $('#testBtn');
