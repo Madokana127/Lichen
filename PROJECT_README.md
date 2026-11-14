@@ -1,7 +1,7 @@
 # Lichen — 项目状态说明
 
 > 本文件在**每次更改之后**更新，用于记录项目当前状态，供后续推进（其他 session / 其他模型）直接接手。
-> 最近更新：2026-11-07
+> 最近更新：2026-11-14
 
 ## 1. 项目定位
 
@@ -50,6 +50,7 @@
 - [x] **iOS 应用框架骨架（本次任务，已完成）**：13 个 Swift 文件，结构见第 6 节
 - [x] 备用模型通道准备（本轮用户追加要求）：详见第 7 节
 - [x] 后续开发方法约定（本轮）：HTML 预览工作流 + 跨平台框架 / 桥接层方向（见第 8、9 节）
+- [x] **UI 原型 v0.1（本轮，已落地）**：`Preview/index.html` 四屏自包含原型 + `Preview/DESIGN.md` 设计规格；验收见第 8 节
 - [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（**后续任务，本次不做**）
 
 骨架验收（回同步前在 WSL 侧实测）：13 个 Swift 文件、28 处 `TODO`、
@@ -71,6 +72,15 @@
 | 运行态 | router 运行中 `http://127.0.0.1:8788`；`~/.claude/settings.json` 已由 `ccms --on` 接管；`routes.json` 五档全部指向 `deepseek/deepseek-flash` |
 | 结论 | 以本地可得证据判断 **ccms 无变化**，CLI 接口按 0.2.1 `Commend.md` 使用；远端状态待网络恢复后补核 |
 
+UI 原型任务开始前再次核对（同一任务的延续，非新任务）：`ccms --version` = `0.2.1`、
+router 运行中 `127.0.0.1:8788`、五档仍为 `deepseek/deepseek-flash`、
+Windows `D:\prflib\CCMS` HEAD `8c0bcf6` 且与 `/root/CCMS` 源码零差异 → **无变化**；
+`D:\prflib\CCMS\PROJECT.md` 于 2026-11-12 细化（含「改名 Alkanet / 1.0.0」重构计划），
+属文档推进，运行接口未变，命令无需调整。远端仍因网络不可达未刷新。
+用户明确「用 DeepSeek 官方 API 就行」，故本轮**未启用**第 7 节备用通道，
+`routes.json.pre-uiux.bak` 备份保留；本轮用到的 `ui-ux-pro-max` 技能已装入
+`D:\Hermes\skills\ui-ux-pro-max-plus\`。
+
 本轮与 ccms 相关的其它事实 / 踩坑：
 
 - 官方 DeepSeek key 已在加密库（掩码 `sk-4d4…c76b`），`ccms --test deepseek` 返回上游
@@ -89,6 +99,9 @@
 
 ```
 Lichen.swiftpm/
+├── Preview/
+│   ├── index.html                   # 四屏自包含 HTML 原型（不进 SwiftPM target）
+│   └── DESIGN.md                    # 设计 token / 四屏 / 动效规格摘要
 ├── .gitignore                       # Swift/Xcode、密钥、任务脚手架（Windows 侧维护）
 ├── PROJECT_README.md                # 本文件（Windows 侧维护）
 ├── Package.swift                    # tools 5.9 / iOS 17 / LichenCore + LichenApp 两个 library / 3 个 target
@@ -171,7 +184,9 @@ ccms --route --all deepseek deepseek-flash         # 切回官方
   Ollama、OpenCode、x.ai、VoltAgent、Linear、Warp（取设计原则，不抄 proprietary 版式）。
 - 每次视觉变更先改 HTML 并在浏览器确认，再改 SwiftUI；SwiftUI 侧调整反向同步回 HTML。
   需要在聊天内直接看时用 `::preview{file=...}` 内联预览。
-- 本轮只确立工作流：`Preview/` 尚未建立、未敲定任何视觉设计；下一次 UI 任务按此落地。
+- **本轮已落地**：`Preview/index.html`（四屏自包含原型）与 `Preview/DESIGN.md`
+  （token / 四屏 / 动效规格）。设计由 DeepSeek Flash 依 `ui-ux-pro-max` 资源库定稿，
+  风格「Lichen daylight」；**等待用户敲定**，敲定后按 DESIGN.md 第 7 节映射 SwiftUI。
 
 ## 9. 架构演进与跨平台框架选型（后续，本轮不实施）
 
@@ -255,10 +270,31 @@ UI 层（可替换）     SwiftUI（现在） / 通用 UI 框架（以后）
 - 新增第 9 节：跨平台核心框架候选（Rust+uniffi / KMP / TS+WASM / C ABI）、通用 UI 框架候选（Flutter / RN+Tauri / Compose MP）、「协议即桥接层」与推荐路径。
 - 本轮**不做选型定案、不引入依赖、不改任何代码**。
 
+### 2026-11-14 · UI 原型 v0.1（本轮，代码改动走 WSL）
+- 用户要求参考 DeepSeek 手机端 / RikkaHub / Hermes Desktop，动手前安装 `ui-ux-pro-max`
+  技能（catalog 中的 `ui-ux-pro-max-plus`，已装到 `D:\Hermes\skills\`）。
+- 任务开始前核对 ccms：无变化（见第 5 节）；用户指定「用 DeepSeek 官方 API 就行」，
+  五档保持 `deepseek/deepseek-flash`，未启用备用通道。
+- Windows 侧写 `TASK.md`（四屏结构 + 交互 + 工程约束，美学全部下放模型），
+  `rsync` Windows → WSL 并把技能参考库复制到 `DesignRefs/`，`claude -p` 生成原型。
+- `claude` 因 `--max-turns 25` 达到上限被截断（最终自述未输出），但产物完整：
+  进程退出前后文件仍被多次自检修订（127391 → 126192 → 126130 字节），
+  以最后一次为准再同步回 Windows。
+- 验收（真实浏览器 + 静态检查）：0 外链、`node --check` JS 语法通过、
+  `prefers-reduced-motion` / `clip-path: circle()` 齐备、四屏均可渲染、
+  圆形扩散（`circle(658px→832px)`）/ 左滑抽屉 / 液态悬浮框三动效实测触发、
+  0 JS 错误；连接页含网关地址 / 端口 / TLS / 超时 / 自定义头 / 测试连接，
+  不含任何 LLM provider 字段；`PROJECT_README.md` 与 `.gitignore` md5 未变。
+- 新增 `Preview/DESIGN.md`（设计规格摘要，供 SwiftUI 映射）；更新本文件；
+  `git add / commit`。
+- 踩坑：视觉模型对截图的描述存在幻觉（把 Agent 名说错、把网关连接页说成
+  「配置 GPT-4o / api.openai.com」），**以 `grep` 源码关键词为准**，不采信截图口述。
+
 ## 11. 待办 / 后续
 
 - [ ] 具体功能：网关连接 / 会话 / 终端 / 设置（后续任务）
-- [ ] 建立 `Preview/` 与最小 HTML 原型（对应当前三 tab 占位视图），跑通第 8 节工作流
+- [ ] 用户在内联预览中敲定 `Preview/index.html`（或提修改意见 → 改 HTML → 复验）
+- [ ] 敲定后按 `Preview/DESIGN.md` 把 token 映射为 SwiftUI 常量，按四屏拆视图替换三 tab 占位
 - [ ] 定稿桥接层契约（命令 / 事件 / DTO）与 IDL 形式，纳入版本管理
 - [ ] 框架选型定案（第 9.4 节）；若下沉 Rust 核心，先在 WSL 编译验证
 - [ ] 明确远程网关协议（WebSocket / HTTP / 自定义？）与鉴权方式
