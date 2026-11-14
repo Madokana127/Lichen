@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Lichen 设计系统 token（对应 `Preview/DESIGN.md` v0.3）。
+/// Lichen 设计系统 token：明暗两套配色与尺寸 / 字体 / 圆角 / 动效常量。
 ///
 /// 颜色按 `ColorScheme` 集中在 ``ColorPalette`` 中，视图只取 palette，
 /// 不在业务视图里散落 `colorScheme == .dark` 判断。

@@ -39,3 +39,6 @@ claude_scaffold.log
 # ---- OS ----
 .DS_Store
 Thumbs.db
+
+# HTML 预览产物不入库（设计阶段产物已移除；如需临时放回用 git add -f）
+Preview/

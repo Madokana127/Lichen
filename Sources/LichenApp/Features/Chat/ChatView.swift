@@ -16,7 +16,7 @@ struct ChatView: View {
     private let contextFiles = [
         "Package.swift",
         "PROJECT_README.md",
-        "Preview/DESIGN.md",
+        "Sources/LichenCore",
         "Sources/LichenApp"
     ]
 
