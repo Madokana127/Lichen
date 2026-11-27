@@ -1,12 +1,17 @@
 # ---- Swift / SwiftPM / Xcode ----
 .build/
+build/
 DerivedData/
+*.app/
+*.xcarchive/
+*.xcresult/
 .swiftpm/configuration/
 .swiftpm/xcode/package.xcworkspace/
 xcuserdata/
-*.xcodeproj/project.xcworkspace/
-*.xcodeproj/xcuserdata/
-*.xcworkspace/xcuserdata/
+*.xcuserstate
+IDEWorkspaceChecks.plist
+*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+**/xcshareddata/swiftpm/configuration/
 *.pbxuser
 *.mode1v3
 *.mode2v3
@@ -21,14 +26,18 @@ xcuserdata/
 Carthage/Build/
 Pods/
 Package.resolved
+!**/xcshareddata/swiftpm/Package.resolved
 
 # ---- secrets / local-only ----
 .env
+.env.*
+!.env.example
 *.env.local
 keys.enc
 keystore.key
 *.p12
 *.mobileprovision
+*.provisionprofile
 
 # ---- task / tooling scratch (must never be committed) ----
 TASK.md

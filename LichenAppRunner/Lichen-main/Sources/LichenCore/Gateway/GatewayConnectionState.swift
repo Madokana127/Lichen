@@ -47,7 +47,7 @@ extension GatewayError: LocalizedError {
         case .unreachable(let detail):
             return "无法连接网关：\(detail)"
         case .unauthorized:
-            return "未授权，请重新登录网关"
+            return "网关鉴权失败，请检查鉴权方式和访问令牌"
         case .tlsFailed(let detail):
             return "TLS 握手失败：\(detail)"
         case .encoding(let detail):

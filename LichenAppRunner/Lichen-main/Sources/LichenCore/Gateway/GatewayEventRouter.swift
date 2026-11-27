@@ -33,24 +33,25 @@ public enum GatewayEventRouter {
     /// 归类一个事件；未知类型返回 `.ignored`。
     public static func classify(_ envelope: GatewayEventEnvelope) -> GatewaySemanticEvent {
         let text = extractedText(from: envelope.payload)
+        let sessionID = envelope.sessionID ?? envelope.payload?["session_id"]?.stringValue
 
         switch envelope.type {
         case GatewayEventType.messageDelta:
-            return .messageDelta(text: text ?? "", sessionID: envelope.sessionID)
+            return .messageDelta(text: text ?? "", sessionID: sessionID)
 
         case GatewayEventType.thinkingDelta, GatewayEventType.reasoningDelta:
-            return .thinkingDelta(text: text ?? "", sessionID: envelope.sessionID)
+            return .thinkingDelta(text: text ?? "", sessionID: sessionID)
 
         case GatewayEventType.messageComplete:
-            return .messageComplete(text: text ?? "", sessionID: envelope.sessionID)
+            return .messageComplete(text: text ?? "", sessionID: sessionID)
 
         case GatewayEventType.sessionInfo,
              GatewayEventType.sessionTitle,
              GatewayEventType.sessionUsage:
-            return .sessionInfo(sessionID: envelope.sessionID, payload: envelope.payload)
+            return .sessionInfo(sessionID: sessionID, payload: envelope.payload)
 
         case GatewayEventType.sessionsChanged:
-            return .sessionsChanged(sessionID: envelope.sessionID)
+            return .sessionsChanged(sessionID: sessionID)
 
         case GatewayEventType.toolStart,
              GatewayEventType.toolGenerating,
@@ -61,7 +62,7 @@ public enum GatewayEventRouter {
             return .toolOutput(
                 toolName: toolName(from: envelope.payload),
                 text: text,
-                sessionID: envelope.sessionID
+                sessionID: sessionID
             )
 
         case GatewayEventType.approvalRequest, GatewayEventType.clarifyRequest:
@@ -69,14 +70,14 @@ public enum GatewayEventRouter {
             return .approvalRequest(
                 params: params(from: fields),
                 requestID: firstString(in: fields, keys: requestIDKeys),
-                sessionID: envelope.sessionID
+                sessionID: sessionID
             )
 
         case GatewayEventType.approvalCancelled, GatewayEventType.requestCancel:
             let fields = flattenedFields(from: envelope.payload)
             return .approvalCancelled(
                 requestID: firstString(in: fields, keys: requestIDKeys),
-                sessionID: envelope.sessionID
+                sessionID: sessionID
             )
 
         case GatewayEventType.statusUpdate:

@@ -68,9 +68,16 @@ public struct GatewayStatus: Codable, Sendable, Equatable {
         try container.encode(overall, forKey: .overall)
     }
 
-    /// 由状态字段推导鉴权模式。
+    /// 网关同时支持多种方式时，默认优先使用会话令牌。
     public var authMode: GatewayAuthMode {
-        authRequired ? .oauth : .token
+        authMode(preferred: .token)
+    }
+
+    func authMode(preferred: GatewayAuthMode) -> GatewayAuthMode {
+        guard authRequired else { return .token }
+        let providers = authProviders.map { $0.lowercased() }
+        guard providers.contains("session-token") else { return .oauth }
+        return providers.allSatisfy { $0 == "session-token" } ? .token : preferred
     }
 
     /// 转换为连接状态使用的运行时信息。

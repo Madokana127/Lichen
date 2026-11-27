@@ -486,6 +486,7 @@ public enum GatewayMethod {
     public static let promptSubmit = "prompt.submit"
     public static let sessionInterrupt = "session.interrupt"
     public static let sessionHistory = "session.history"
+    public static let sessionTranscript = "session.transcript"
     public static let sessionEventsSince = "session.events.since"
     public static let approvalPending = "approval.pending"
     public static let approvalRespond = "approval.respond"

@@ -1,5 +1,16 @@
 import Foundation
 
+/// Last synchronized remote transcript, kept separate from locally recorded messages.
+public struct SessionHistorySnapshot: Codable, Equatable, Sendable {
+    public let messages: [SessionMessage]
+    public let mirroredLocalIDs: Set<UUID>
+
+    public init(messages: [SessionMessage], mirroredLocalIDs: Set<UUID>) {
+        self.messages = messages
+        self.mirroredLocalIDs = mirroredLocalIDs
+    }
+}
+
 /// 会话及其消息的读写接口。
 public protocol SessionStore: Sendable {
     /// 返回全部会话，按 `updatedAt` 降序排列。
@@ -14,11 +25,17 @@ public protocol SessionStore: Sendable {
     /// 返回指定会话的消息，按 `createdAt` 升序排列。
     func messages(sessionID: UUID) async throws -> [SessionMessage]
 
-    /// 追加一条消息；不会改动会话的摘要/计数元数据。
+    /// 按消息 ID 插入或更新一条消息；不会改动会话的摘要/计数元数据。
     func append(_ message: SessionMessage) async throws
 
     /// 写入会话（不存在时插入），用于更新标题、摘要、计数与归档状态。
     func update(_ session: Session) async throws
+
+    /// 按消息 ID 写入或更新消息，并保存对应的会话摘要。
+    func save(_ session: Session, message: SessionMessage) async throws
+
+    func remoteHistory(sessionID: UUID) async throws -> SessionHistorySnapshot?
+    func saveRemoteHistory(_ history: SessionHistorySnapshot, sessionID: UUID) async throws
 
     /// 返回按项目分组后的会话。
     func groupedSessions() async throws -> [SessionGroup]
@@ -28,6 +45,7 @@ public protocol SessionStore: Sendable {
 public actor InMemorySessionStore: SessionStore {
     private var sessions: [UUID: Session]
     private var messagesBySession: [UUID: [SessionMessage]]
+    private var remoteHistoryBySession: [UUID: SessionHistorySnapshot] = [:]
 
     public init(initial: [Session] = [], messages: [SessionMessage] = []) {
         var sessionStorage: [UUID: Session] = [:]
@@ -62,6 +80,7 @@ public actor InMemorySessionStore: SessionStore {
     public func deleteSession(id: UUID) async throws {
         sessions.removeValue(forKey: id)
         messagesBySession.removeValue(forKey: id)
+        remoteHistoryBySession.removeValue(forKey: id)
     }
 
     public func messages(sessionID: UUID) async throws -> [SessionMessage] {
@@ -69,11 +88,24 @@ public actor InMemorySessionStore: SessionStore {
     }
 
     public func append(_ message: SessionMessage) async throws {
-        messagesBySession[message.sessionID, default: []].append(message)
+        upsert(message, into: &messagesBySession[message.sessionID, default: []])
     }
 
     public func update(_ session: Session) async throws {
         sessions[session.id] = session
+    }
+
+    public func save(_ session: Session, message: SessionMessage) async throws {
+        sessions[session.id] = session
+        upsert(message, into: &messagesBySession[session.id, default: []])
+    }
+
+    public func remoteHistory(sessionID: UUID) async throws -> SessionHistorySnapshot? {
+        remoteHistoryBySession[sessionID]
+    }
+
+    public func saveRemoteHistory(_ history: SessionHistorySnapshot, sessionID: UUID) async throws {
+        remoteHistoryBySession[sessionID] = history
     }
 
     public func groupedSessions() async throws -> [SessionGroup] {
@@ -101,12 +133,15 @@ public actor PersistentSessionStore: SessionStore {
     internal struct Snapshot: Codable {
         var sessions: [Session]
         var messagesBySession: [String: [SessionMessage]]
+        var remoteHistoryBySession: [String: SessionHistorySnapshot]? = nil
     }
 
     private let directoryURL: URL
     private let fileURL: URL
+    private let loadError: (any Error)?
     private var sessions: [UUID: Session]
     private var messagesBySession: [UUID: [SessionMessage]]
+    private var remoteHistoryBySession: [String: SessionHistorySnapshot] = [:]
 
     public init() {
         let directory = Self.defaultDirectoryURL
@@ -114,9 +149,17 @@ public actor PersistentSessionStore: SessionStore {
         self.directoryURL = directory
         self.fileURL = file
 
-        let snapshot = Self.readSnapshot(at: file)
-        self.sessions = Self.indexSessions(snapshot.sessions)
-        self.messagesBySession = Self.indexMessages(snapshot.messagesBySession)
+        do {
+            let snapshot = try Self.readSnapshot(at: file)
+            self.sessions = Self.indexSessions(snapshot.sessions)
+            self.messagesBySession = Self.indexMessages(snapshot.messagesBySession)
+            self.remoteHistoryBySession = snapshot.remoteHistoryBySession ?? [:]
+            self.loadError = nil
+        } catch {
+            self.sessions = [:]
+            self.messagesBySession = [:]
+            self.loadError = error
+        }
     }
 
     /// 测试或自定义容器可注入存储目录。
@@ -125,16 +168,26 @@ public actor PersistentSessionStore: SessionStore {
         self.directoryURL = directoryURL
         self.fileURL = file
 
-        let snapshot = Self.readSnapshot(at: file)
-        self.sessions = Self.indexSessions(snapshot.sessions)
-        self.messagesBySession = Self.indexMessages(snapshot.messagesBySession)
+        do {
+            let snapshot = try Self.readSnapshot(at: file)
+            self.sessions = Self.indexSessions(snapshot.sessions)
+            self.messagesBySession = Self.indexMessages(snapshot.messagesBySession)
+            self.remoteHistoryBySession = snapshot.remoteHistoryBySession ?? [:]
+            self.loadError = nil
+        } catch {
+            self.sessions = [:]
+            self.messagesBySession = [:]
+            self.loadError = error
+        }
     }
 
     public func listSessions() async throws -> [Session] {
-        sortedSessions(Array(sessions.values))
+        if let loadError { throw loadError }
+        return sortedSessions(Array(sessions.values))
     }
 
     public func createSession(title: String) async throws -> Session {
+        if let loadError { throw loadError }
         let now = Date()
         let session = Session(
             id: UUID(),
@@ -142,43 +195,95 @@ public actor PersistentSessionStore: SessionStore {
             createdAt: now,
             updatedAt: now
         )
-        sessions[session.id] = session
-        try persist()
+        try await update(session)
         return session
     }
 
     public func deleteSession(id: UUID) async throws {
-        guard sessions.removeValue(forKey: id) != nil else { return }
-        messagesBySession.removeValue(forKey: id)
-        try persist()
+        if let loadError { throw loadError }
+        guard let previousSession = sessions.removeValue(forKey: id) else { return }
+        let previousMessages = messagesBySession.removeValue(forKey: id)
+        let previousHistory = remoteHistoryBySession.removeValue(forKey: id.uuidString)
+        do {
+            try persist()
+        } catch {
+            sessions[id] = previousSession
+            messagesBySession[id] = previousMessages
+            remoteHistoryBySession[id.uuidString] = previousHistory
+            throw error
+        }
     }
 
     public func messages(sessionID: UUID) async throws -> [SessionMessage] {
-        sortedMessages(messagesBySession[sessionID] ?? [])
+        if let loadError { throw loadError }
+        return sortedMessages(messagesBySession[sessionID] ?? [])
     }
 
     public func append(_ message: SessionMessage) async throws {
-        messagesBySession[message.sessionID, default: []].append(message)
-        try persist()
+        try write(message: message, session: nil)
     }
 
     public func update(_ session: Session) async throws {
-        sessions[session.id] = session
-        try persist()
+        if let loadError { throw loadError }
+        let previous = sessions.updateValue(session, forKey: session.id)
+        do {
+            try persist()
+        } catch {
+            sessions[session.id] = previous
+            throw error
+        }
+    }
+
+    public func save(_ session: Session, message: SessionMessage) async throws {
+        try write(message: message, session: session)
+    }
+
+    public func remoteHistory(sessionID: UUID) async throws -> SessionHistorySnapshot? {
+        if let loadError { throw loadError }
+        return remoteHistoryBySession[sessionID.uuidString]
+    }
+
+    public func saveRemoteHistory(_ history: SessionHistorySnapshot, sessionID: UUID) async throws {
+        if let loadError { throw loadError }
+        let key = sessionID.uuidString
+        let previous = remoteHistoryBySession.updateValue(history, forKey: key)
+        do {
+            try persist()
+        } catch {
+            remoteHistoryBySession[key] = previous
+            throw error
+        }
+    }
+
+    private func write(message: SessionMessage, session: Session?) throws {
+        if let loadError { throw loadError }
+        let sessionID = message.sessionID
+        let previousSession = sessions[sessionID]
+        let previousMessages = messagesBySession[sessionID]
+        if let session { sessions[sessionID] = session }
+        upsert(message, into: &messagesBySession[sessionID, default: []])
+        do {
+            try persist()
+        } catch {
+            sessions[sessionID] = previousSession
+            messagesBySession[sessionID] = previousMessages
+            throw error
+        }
     }
 
     public func groupedSessions() async throws -> [SessionGroup] {
-        Session.grouped(Array(sessions.values))
+        if let loadError { throw loadError }
+        return Session.grouped(Array(sessions.values))
     }
 }
 
 private extension PersistentSessionStore {
-    static func readSnapshot(at fileURL: URL) -> Snapshot {
-        guard let data = try? Data(contentsOf: fileURL),
-              let decoded = try? JSONDecoder().decode(Snapshot.self, from: data) else {
+    static func readSnapshot(at fileURL: URL) throws -> Snapshot {
+        do {
+            return try JSONDecoder().decode(Snapshot.self, from: Data(contentsOf: fileURL))
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
             return Snapshot(sessions: [], messagesBySession: [:])
         }
-        return decoded
     }
 
     static func indexSessions(_ sessions: [Session]) -> [UUID: Session] {
@@ -207,7 +312,8 @@ private extension PersistentSessionStore {
         }
         return Snapshot(
             sessions: sortedSessions(Array(sessions.values)),
-            messagesBySession: messages
+            messagesBySession: messages,
+            remoteHistoryBySession: remoteHistoryBySession.isEmpty ? nil : remoteHistoryBySession
         )
     }
 
@@ -235,6 +341,14 @@ private extension PersistentSessionStore {
 }
 
 /// 会话按 `updatedAt` 降序；时间相同时按 `createdAt` 降序、id 升序兜底。
+private func upsert(_ message: SessionMessage, into messages: inout [SessionMessage]) {
+    if let index = messages.firstIndex(where: { $0.id == message.id }) {
+        messages[index] = message
+    } else {
+        messages.append(message)
+    }
+}
+
 private func sortedSessions(_ sessions: [Session]) -> [Session] {
     sessions.sorted { lhs, rhs in
         if lhs.updatedAt != rhs.updatedAt {

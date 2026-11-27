@@ -10,6 +10,12 @@ public enum MessageRole: String, Codable, Sendable {
     case approval
 }
 
+public enum MessageDelivery: String, Codable, Sendable {
+    case sending
+    case sent
+    case failed
+}
+
 /// 一条会话消息。
 ///
 /// `isEmphasized` 对应原型里「正常字重 + 粗体区分思考与输出」：思考类消息使用粗体。
@@ -24,6 +30,7 @@ public struct SessionMessage: Identifiable, Equatable, Codable, Sendable {
     public var toolName: String?
     /// 审批类消息附带的卡片数据。
     public var approval: ApprovalCard?
+    public var delivery: MessageDelivery?
 
     public init(
         id: UUID = UUID(),
@@ -33,7 +40,8 @@ public struct SessionMessage: Identifiable, Equatable, Codable, Sendable {
         createdAt: Date = Date(),
         isEmphasized: Bool = false,
         toolName: String? = nil,
-        approval: ApprovalCard? = nil
+        approval: ApprovalCard? = nil,
+        delivery: MessageDelivery? = nil
     ) {
         self.id = id
         self.sessionID = sessionID
@@ -43,6 +51,7 @@ public struct SessionMessage: Identifiable, Equatable, Codable, Sendable {
         self.isEmphasized = isEmphasized
         self.toolName = toolName
         self.approval = approval
+        self.delivery = delivery
     }
 
     /// 把网关事件映射为可展示的消息。

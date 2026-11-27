@@ -20,6 +20,8 @@ public struct Session: Identifiable, Equatable, Codable, Sendable {
     public var isArchived: Bool
     /// 网关侧 session_id。
     public var remoteID: String?
+    /// Hermes 的持久化 ID；恢复时可换取新的运行中会话 ID。
+    public var remoteHistoryID: String?
 
     /// 兼容旧调用方的三参数初始化方法。
     public init(id: UUID = UUID(), title: String, createdAt: Date = Date()) {
@@ -42,7 +44,8 @@ public struct Session: Identifiable, Equatable, Codable, Sendable {
         preview: String? = nil,
         messageCount: Int = 0,
         isArchived: Bool = false,
-        remoteID: String? = nil
+        remoteID: String? = nil,
+        remoteHistoryID: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -54,6 +57,7 @@ public struct Session: Identifiable, Equatable, Codable, Sendable {
         self.messageCount = messageCount
         self.isArchived = isArchived
         self.remoteID = remoteID
+        self.remoteHistoryID = remoteHistoryID
     }
 
     /// 便捷拷贝：仅更新传入的字段，并把 `updatedAt` 置为当前时间。
@@ -108,6 +112,7 @@ public struct Session: Identifiable, Equatable, Codable, Sendable {
         case messageCount
         case isArchived
         case remoteID
+        case remoteHistoryID
     }
 
     /// 容忍旧数据缺失新增字段：`updatedAt` 回退到 `createdAt`，其余取默认值。
@@ -123,6 +128,7 @@ public struct Session: Identifiable, Equatable, Codable, Sendable {
         messageCount = try container.decodeIfPresent(Int.self, forKey: .messageCount) ?? 0
         isArchived = try container.decodeIfPresent(Bool.self, forKey: .isArchived) ?? false
         remoteID = try container.decodeIfPresent(String.self, forKey: .remoteID)
+        remoteHistoryID = try container.decodeIfPresent(String.self, forKey: .remoteHistoryID)
     }
 }
 

@@ -112,6 +112,7 @@ public final class URLSessionGatewayClient: NSObject, GatewayClient, URLSessionW
     // MARK: 注入依赖
 
     private let credentials: GatewayCredentials
+    private let automaticallyReconnects: Bool
     private let timings: GatewayTimings
     private var reconnectPolicy: GatewayReconnectPolicy
     private let httpOverride: GatewayHTTPPerforming?
@@ -179,10 +180,12 @@ public final class URLSessionGatewayClient: NSObject, GatewayClient, URLSessionW
         credentials: GatewayCredentials = GatewayCredentials(),
         timings: GatewayTimings = GatewayTimings(),
         reconnectPolicy: GatewayReconnectPolicy = GatewayReconnectPolicy(),
+        automaticallyReconnects: Bool = true,
         http: GatewayHTTPPerforming? = nil,
         webSocketFactory: GatewayWebSocketFactory? = nil
     ) {
         self.credentials = credentials
+        self.automaticallyReconnects = automaticallyReconnects
         self.timings = timings
         self.reconnectPolicy = reconnectPolicy
         self.httpOverride = http
@@ -439,7 +442,7 @@ public final class URLSessionGatewayClient: NSObject, GatewayClient, URLSessionW
 
         let credential: String
         let isTicket: Bool
-        switch status.authMode {
+        switch status.authMode(preferred: configuration.authMode) {
         case .token:
             credential = credentials.token ?? ""
             isTicket = false
@@ -699,7 +702,6 @@ public final class URLSessionGatewayClient: NSObject, GatewayClient, URLSessionW
         let attemptIsCurrent = generation == connectionGeneration && !manuallyDisconnected
         let handshakeAlreadySettled = handshakeOutcome != nil
         let info = pendingInfo ?? GatewayInfo()
-        let profile = currentConfiguration?.remoteProfile
         lock.unlock()
 
         guard attemptIsCurrent, !handshakeAlreadySettled else {
@@ -709,10 +711,6 @@ public final class URLSessionGatewayClient: NSObject, GatewayClient, URLSessionW
         do {
             let capabilitiesID = allocateRequestID()
             try await sendRaw(GatewayJSONRPC.capabilities(id: capabilitiesID))
-            let sessionListID = allocateRequestID()
-            try await sendRaw(
-                GatewayJSONRPC.sessionList(id: sessionListID, profile: profile)
-            )
         } catch {
             let gatewayError = Self.mapTransportError(error)
             settleHandshake(.failure(gatewayError))
@@ -951,7 +949,7 @@ public final class URLSessionGatewayClient: NSObject, GatewayClient, URLSessionW
             return
         }
         transition(to: .failed(error))
-        if let configuration {
+        if automaticallyReconnects, let configuration {
             scheduleReconnect(configuration: configuration)
         }
     }
